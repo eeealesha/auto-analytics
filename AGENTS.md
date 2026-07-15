@@ -39,6 +39,13 @@ score = (avg_price - current_price) / avg_price * 100 + mileage_bonus + year_bon
 - Score 10-20 = "Хорошая сделка"
 - Score < 10 = "Средняя"
 
+## Deployment
+
+- **GitHub:** https://github.com/eeealesha/auto-analytics
+- **Server:** 90.156.129.73 (nginx)
+- **CI/CD:** GitHub Actions (`.github/workflows/deploy.yml`)
+- **Deploy trigger:** push to master → SSH → pull → scrape → build → reload nginx
+
 ## Gotchas
 
 - Цены в API уже числа (28200000), не строки
