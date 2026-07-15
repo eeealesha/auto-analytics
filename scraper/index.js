@@ -1,0 +1,124 @@
+import axios from 'axios';
+import fs from 'fs';
+import path from 'path';
+
+const API_URL = 'https://www.major-expert.ru/api/v1/public/cars/items-by-url';
+const DELAY_MS = 300;
+const DATA_DIR = path.join(process.cwd(), 'data');
+const HISTORY_DIR = path.join(DATA_DIR, 'history');
+const PER_PAGE = 12;
+
+const HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Accept': 'application/json',
+  'Content-Type': 'application/json',
+};
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function ensureDirs() {
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  if (!fs.existsSync(HISTORY_DIR)) fs.mkdirSync(HISTORY_DIR, { recursive: true });
+}
+
+function normalizeCar(item) {
+  const ch = item.characteristics || {};
+  return {
+    id: item.id,
+    brand: item.brandName,
+    model: item.modelName,
+    name: item.name,
+    year: ch.year?.value || null,
+    mileage: ch.run?.value || null,
+    bodyType: ch.body?.value || null,
+    fuelType: ch.engine?.value || null,
+    engineVolume: ch.engineCapacity ? parseFloat(ch.engineCapacity.value) : null,
+    horsepower: ch.enginePower?.value || null,
+    transmission: ch.gearbox?.value || null,
+    driveType: ch.driveType?.value || null,
+    color: ch.color?.value || null,
+    owners: ch.owners?.value || null,
+    price: item.price,
+    oldPrice: item.hasDiscount ? item.fullPrice : null,
+    url: item.url ? `https://www.major-expert.ru${item.url}` : null,
+    image: item.media?.[0]?.image?.md || null,
+    isNew: item.isNew || false,
+  };
+}
+
+async function fetchPage(page) {
+  try {
+    const response = await axios.post(API_URL, {
+      url: '/cars/moscow/',
+      page,
+      perPage: PER_PAGE,
+      orderBy: 'popular',
+    }, { headers: HEADERS, timeout: 15000 });
+
+    const data = response.data?.data;
+    if (!data?.items) return { cars: [], total: 0, lastPage: 0 };
+
+    return {
+      cars: data.items.map(normalizeCar),
+      total: data.pagination?.total || 0,
+      lastPage: data.pagination?.lastPage || 0,
+    };
+  } catch (error) {
+    console.error(`  Error on page ${page}: ${error.message}`);
+    return { cars: [], total: 0, lastPage: 0 };
+  }
+}
+
+async function scrapeAll(maxPages = Infinity) {
+  ensureDirs();
+
+  console.log('Fetching page 1 to get total...');
+  const first = await fetchPage(1);
+  if (first.cars.length === 0) {
+    console.log('Failed to fetch page 1. Aborting.');
+    return [];
+  }
+
+  const totalPages = Math.min(first.lastPage, maxPages);
+  let allCars = [...first.cars];
+  console.log(`Total: ${first.total} cars across ${first.lastPage} pages. Scraping ${totalPages} pages...\n`);
+
+  for (let page = 2; page <= totalPages; page++) {
+    await delay(DELAY_MS);
+    const { cars } = await fetchPage(page);
+    console.log(`  Page ${page}/${totalPages}: ${cars.length} cars`);
+    allCars = allCars.concat(cars);
+  }
+
+  const uniqueCars = deduplicate(allCars);
+
+  const today = new Date().toISOString().split('T')[0];
+  const historyPath = path.join(HISTORY_DIR, `${today}.json`);
+  fs.writeFileSync(historyPath, JSON.stringify(uniqueCars, null, 2));
+
+  const mainPath = path.join(DATA_DIR, 'cars.json');
+  fs.writeFileSync(mainPath, JSON.stringify(uniqueCars, null, 2));
+
+  console.log(`\nDone! Scraped ${uniqueCars.length} unique cars.`);
+  console.log(`Saved to ${mainPath}`);
+  console.log(`History snapshot: ${historyPath}`);
+
+  return uniqueCars;
+}
+
+function deduplicate(cars) {
+  const seen = new Set();
+  return cars.filter(car => {
+    if (seen.has(car.id)) return false;
+    seen.add(car.id);
+    return true;
+  });
+}
+
+const args = process.argv.slice(2);
+const pagesArg = args.find(a => a.startsWith('--pages='));
+const maxPages = pagesArg ? parseInt(pagesArg.split('=')[1]) : Infinity;
+
+scrapeAll(maxPages).catch(console.error);
