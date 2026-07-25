@@ -8,7 +8,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "scrape": "node scraper/index.js",
-    "scrape:quick": "node scraper/index.js --pages=5"
+    "scrape:quick": "node scraper/index.js --pages=5",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [],
   "author": "",
@@ -21,7 +23,12 @@
     "recharts": "^3.9.2"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^7.0.0",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@vitejs/plugin-react": "^6.0.3",
-    "vite": "^8.1.4"
+    "jsdom": "^29.1.1",
+    "vite": "^8.1.4",
+    "vitest": "^4.1.10"
   }
 }

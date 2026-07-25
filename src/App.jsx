@@ -144,6 +144,11 @@ function App() {
           {years.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
 
+        <select value={bodyTypeFilter} onChange={e => setBodyTypeFilter(e.target.value)}>
+          <option value="all">Все типы кузова</option>
+          {bodyTypes.map(bt => <option key={bt} value={bt}>{bt}</option>)}
+        </select>
+
         <label className="checkbox-label">
           <input
             type="checkbox"
@@ -152,24 +157,6 @@ function App() {
           />
           Только выгодные предложения
         </label>
-      </div>
-
-      <div className="body-chips">
-        <button
-          className={`chip ${bodyTypeFilter === 'all' ? 'active' : ''}`}
-          onClick={() => setBodyTypeFilter('all')}
-        >
-          Все типы
-        </button>
-        {bodyTypes.map(bt => (
-          <button
-            key={bt}
-            className={`chip ${bodyTypeFilter === bt ? 'active' : ''}`}
-            onClick={() => setBodyTypeFilter(bt)}
-          >
-            {bt}
-          </button>
-        ))}
       </div>
 
       <div className="stats-row">

@@ -57,36 +57,6 @@ body {
   cursor: pointer;
 }
 
-.body-chips {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
-}
-
-.chip {
-  padding: 8px 16px;
-  border: 1px solid #e9e9ed;
-  border-radius: 20px;
-  font-size: 13px;
-  background: white;
-  cursor: pointer;
-  transition: all 0.2s;
-  color: #666;
-}
-
-.chip:hover {
-  border-color: #48b803;
-  color: #333;
-}
-
-.chip.active {
-  background: #48b803;
-  border-color: #48b803;
-  color: white;
-  font-weight: 600;
-}
-
 .stats-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -355,13 +325,4 @@ body {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .body-chips {
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .chip {
-    flex-shrink: 0;
-  }
 }
