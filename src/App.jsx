@@ -1,18 +1,24 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  ScatterChart, Scatter, LineChart, Line, Cell, PieChart, Pie,
+  ScatterChart, Scatter, LineChart, Line, Cell,
 } from 'recharts';
 import { calculateScore, formatPrice, formatMileage } from './utils/scoreCalculator';
 import rawData from '../data/cars.json';
 
 const COLORS = ['#48b803', '#2196F3', '#FF9800', '#E91E63', '#9C27B0', '#00BCD4', '#FF5722', '#607D8B'];
 
+function listingUrlFromCarUrl(carUrl) {
+  if (!carUrl) return null;
+  return carUrl.replace(/\/[^/]+\/$/, '/');
+}
+
 function App() {
   const [brandFilter, setBrandFilter] = useState('all');
   const [yearFrom, setYearFrom] = useState('all');
   const [yearTo, setYearTo] = useState('all');
   const [showDealsOnly, setShowDealsOnly] = useState(false);
+  const [bodyTypeFilter, setBodyTypeFilter] = useState('all');
 
   const cars = useMemo(() => calculateScore(rawData), []);
 
@@ -26,14 +32,20 @@ function App() {
     return y;
   }, [cars]);
 
+  const bodyTypes = useMemo(() => {
+    const b = [...new Set(cars.map(c => c.bodyType).filter(Boolean))].sort();
+    return b;
+  }, [cars]);
+
   const filtered = useMemo(() => {
     let result = cars;
     if (brandFilter !== 'all') result = result.filter(c => c.brand === brandFilter);
     if (yearFrom !== 'all') result = result.filter(c => c.year >= parseInt(yearFrom));
     if (yearTo !== 'all') result = result.filter(c => c.year <= parseInt(yearTo));
+    if (bodyTypeFilter !== 'all') result = result.filter(c => c.bodyType === bodyTypeFilter);
     if (showDealsOnly) result = result.filter(c => c.score > 10);
     return result;
-  }, [cars, brandFilter, yearFrom, yearTo, showDealsOnly]);
+  }, [cars, brandFilter, yearFrom, yearTo, bodyTypeFilter, showDealsOnly]);
 
   const priceByBrand = useMemo(() => {
     const map = {};
@@ -83,7 +95,7 @@ function App() {
     const map = {};
     filtered.forEach(c => {
       const key = `${c.brand} ${c.model}`;
-      if (!map[key]) map[key] = { name: key, count: 0, prices: [] };
+      if (!map[key]) map[key] = { name: key, brand: c.brand, model: c.model, count: 0, prices: [], sampleUrl: c.url || null };
       map[key].count++;
       map[key].prices.push(c.price);
     });
@@ -91,6 +103,7 @@ function App() {
       .map(d => ({
         ...d,
         avgPrice: Math.round(d.prices.reduce((a, b) => a + b, 0) / d.prices.length),
+        listingUrl: listingUrlFromCarUrl(d.sampleUrl),
       }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
@@ -141,6 +154,24 @@ function App() {
         </label>
       </div>
 
+      <div className="body-chips">
+        <button
+          className={`chip ${bodyTypeFilter === 'all' ? 'active' : ''}`}
+          onClick={() => setBodyTypeFilter('all')}
+        >
+          Все типы
+        </button>
+        {bodyTypes.map(bt => (
+          <button
+            key={bt}
+            className={`chip ${bodyTypeFilter === bt ? 'active' : ''}`}
+            onClick={() => setBodyTypeFilter(bt)}
+          >
+            {bt}
+          </button>
+        ))}
+      </div>
+
       <div className="stats-row">
         <div className="stat-card">
           <div className="stat-value">{filtered.length}</div>
@@ -154,7 +185,12 @@ function App() {
         </div>
         <div className="stat-card">
           <div className="stat-value">
-            {filtered.length > 0 ? Math.round(filtered.reduce((a, c) => a + (c.mileage || 0), 0) / filtered.filter(c => c.mileage).length).toLocaleString('ru-RU') + ' км' : '—'}
+            {(() => {
+              const withMileage = filtered.filter(c => c.mileage);
+              return withMileage.length > 0
+                ? Math.round(withMileage.reduce((a, c) => a + c.mileage, 0) / withMileage.length).toLocaleString('ru-RU') + ' км'
+                : '—';
+            })()}
           </div>
           <div className="stat-label">Средний пробег</div>
         </div>
@@ -212,20 +248,25 @@ function App() {
         </div>
 
         <div className="chart-card full-width">
-          <h2>Топ-10 самых популярных моделей</h2>
-          <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={topModels} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" />
-              <YAxis dataKey="name" type="category" width={200} />
-              <Tooltip />
-              <Bar dataKey="count" fill="#FF9800" name="Количество">
-                {topModels.map((_, i) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          <h2>Топ-10 популярных моделей</h2>
+          <div className="tiles-grid">
+            {topModels.map((m, i) => {
+              const Tag = m.listingUrl ? 'a' : 'div';
+              const linkProps = m.listingUrl
+                ? { href: m.listingUrl, target: '_blank', rel: 'noopener noreferrer' }
+                : {};
+              return (
+                <Tag key={m.name} className="tile-card" {...linkProps}>
+                  <div className="tile-accent" style={{ background: COLORS[i % COLORS.length] }} />
+                  <div className="tile-content">
+                    <div className="tile-name">{m.name}</div>
+                    <div className="tile-count">{m.count} объяв.</div>
+                    <div className="tile-price">{formatPrice(m.avgPrice)}</div>
+                  </div>
+                </Tag>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -240,7 +281,24 @@ function App() {
                 </span>
                 <span className="score-label">{car.scoreLabel}</span>
               </div>
-              {car.image && <img src={car.image} alt={car.name} className="deal-image" />}
+              <div className="deal-image-wrapper">
+                {car.image ? (
+                  <img
+                    src={car.image}
+                    alt={`${car.brand} ${car.model}`}
+                    className="deal-image"
+                    onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                  />
+                ) : null}
+                <div className="deal-image-placeholder" style={{ display: car.image ? 'none' : 'flex' }}>
+                  <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#bbb" strokeWidth="1.5">
+                    <path d="M5 17h14M5 17l2-5h10l2 5M7 12V7a1 1 0 011-1h8a1 1 0 011 1v5" />
+                    <circle cx="7.5" cy="14.5" r="1.5" />
+                    <circle cx="16.5" cy="14.5" r="1.5" />
+                  </svg>
+                  <span>{car.brand} {car.model}</span>
+                </div>
+              </div>
               <div className="deal-info">
                 <h3>{car.brand} {car.model}</h3>
                 <p>{car.year} год • {formatMileage(car.mileage)}</p>
