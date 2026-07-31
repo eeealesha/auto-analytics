@@ -133,6 +133,14 @@ body {
 .tile-accent {
   height: 4px;
   width: 100%;
+  background: #e8e8ea;
+  overflow: hidden;
+}
+
+.tile-accent-fill {
+  height: 100%;
+  min-width: 0;
+  transition: width 0.3s ease;
 }
 
 .tile-content {
@@ -247,9 +255,8 @@ body {
 
 .deal-image-placeholder {
   width: 100%;
-  height: 160px;
+  height: 100%;
   background: #f0f0f3;
-  border-radius: 8px;
   display: flex;
   flex-direction: column;
   align-items: center;

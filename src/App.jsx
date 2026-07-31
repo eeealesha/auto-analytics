@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   ScatterChart, Scatter, LineChart, Line, Cell,
@@ -11,6 +11,53 @@ const COLORS = ['#48b803', '#2196F3', '#FF9800', '#E91E63', '#9C27B0', '#00BCD4'
 function listingUrlFromCarUrl(carUrl) {
   if (!carUrl) return null;
   return carUrl.replace(/\/[^/]+\/$/, '/');
+}
+
+function DealCard({ car }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const showImage = car.image && !imgFailed;
+
+  return (
+    <div className={`deal-card ${car.score > 20 ? 'great' : car.score > 10 ? 'good' : ''}`}>
+      <div className="deal-score">
+        <span className={`score-badge ${car.score > 20 ? 'great' : car.score > 10 ? 'good' : ''}`}>
+          {car.score > 0 ? '+' : ''}{car.score}
+        </span>
+        <span className="score-label">{car.scoreLabel}</span>
+      </div>
+      <div className="deal-image-wrapper">
+        {showImage ? (
+          <img
+            src={car.image}
+            alt={`${car.brand} ${car.model}`}
+            className="deal-image"
+            onError={() => setImgFailed(true)}
+          />
+        ) : (
+          <div className="deal-image-placeholder">
+            <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#bbb" strokeWidth="1.5" aria-hidden="true">
+              <path d="M5 17h14M5 17l2-5h10l2 5M7 12V7a1 1 0 011-1h8a1 1 0 011 1v5" />
+              <circle cx="7.5" cy="14.5" r="1.5" />
+              <circle cx="16.5" cy="14.5" r="1.5" />
+            </svg>
+            <span>{car.brand} {car.model}</span>
+          </div>
+        )}
+      </div>
+      <div className="deal-info">
+        <h3>{car.brand} {car.model}</h3>
+        <p>{car.year} год • {formatMileage(car.mileage)}</p>
+        <p>{car.engineVolume} {car.fuelType} / {car.horsepower} л.с.</p>
+        <p className="deal-price">{formatPrice(car.price)}</p>
+        {car.avgPrice && <p className="deal-avg">Средняя: {formatPrice(car.avgPrice)}</p>}
+      </div>
+      {car.url && (
+        <a href={car.url} target="_blank" rel="noopener noreferrer" className="deal-link">
+          Смотреть на сайте →
+        </a>
+      )}
+    </div>
+  );
 }
 
 function App() {
@@ -32,20 +79,36 @@ function App() {
     return y;
   }, [cars]);
 
-  const bodyTypes = useMemo(() => {
-    const b = [...new Set(cars.map(c => c.bodyType).filter(Boolean))].sort();
-    return b;
-  }, [cars]);
-
-  const filtered = useMemo(() => {
+  const baseFiltered = useMemo(() => {
     let result = cars;
     if (brandFilter !== 'all') result = result.filter(c => c.brand === brandFilter);
     if (yearFrom !== 'all') result = result.filter(c => c.year >= parseInt(yearFrom));
     if (yearTo !== 'all') result = result.filter(c => c.year <= parseInt(yearTo));
-    if (bodyTypeFilter !== 'all') result = result.filter(c => c.bodyType === bodyTypeFilter);
     if (showDealsOnly) result = result.filter(c => c.score > 10);
     return result;
-  }, [cars, brandFilter, yearFrom, yearTo, bodyTypeFilter, showDealsOnly]);
+  }, [cars, brandFilter, yearFrom, yearTo, showDealsOnly]);
+
+  const filtered = useMemo(() => {
+    if (bodyTypeFilter === 'all') return baseFiltered;
+    return baseFiltered.filter(c => c.bodyType === bodyTypeFilter);
+  }, [baseFiltered, bodyTypeFilter]);
+
+  const bodyTypes = useMemo(() => {
+    const map = {};
+    baseFiltered.forEach(c => {
+      if (!c.bodyType) return;
+      map[c.bodyType] = (map[c.bodyType] || 0) + 1;
+    });
+    return Object.entries(map)
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ru'))
+      .map(([bt]) => bt);
+  }, [baseFiltered]);
+
+  useEffect(() => {
+    if (bodyTypeFilter !== 'all' && !bodyTypes.includes(bodyTypeFilter)) {
+      setBodyTypeFilter('all');
+    }
+  }, [bodyTypes, bodyTypeFilter]);
 
   const priceByBrand = useMemo(() => {
     const map = {};
@@ -113,6 +176,12 @@ function App() {
     return [...filtered].sort((a, b) => b.score - a.score).slice(0, 5);
   }, [filtered]);
 
+  const avgMileage = useMemo(() => {
+    const withMileage = filtered.filter(c => c.mileage != null);
+    if (withMileage.length === 0) return null;
+    return Math.round(withMileage.reduce((a, c) => a + c.mileage, 0) / withMileage.length);
+  }, [filtered]);
+
   const brandColors = useMemo(() => {
     const map = {};
     brands.forEach((b, i) => { map[b] = COLORS[i % COLORS.length]; });
@@ -172,12 +241,7 @@ function App() {
         </div>
         <div className="stat-card">
           <div className="stat-value">
-            {(() => {
-              const withMileage = filtered.filter(c => c.mileage);
-              return withMileage.length > 0
-                ? Math.round(withMileage.reduce((a, c) => a + c.mileage, 0) / withMileage.length).toLocaleString('ru-RU') + ' км'
-                : '—';
-            })()}
+            {avgMileage != null ? avgMileage.toLocaleString('ru-RU') + ' км' : '—'}
           </div>
           <div className="stat-label">Средний пробег</div>
         </div>
@@ -244,7 +308,12 @@ function App() {
                 : {};
               return (
                 <Tag key={m.name} className="tile-card" {...linkProps}>
-                  <div className="tile-accent" style={{ background: COLORS[i % COLORS.length] }} />
+                  <div className="tile-accent">
+                    <div
+                      className="tile-accent-fill"
+                      style={{ width: `${(m.count / topModels[0].count) * 100}%`, background: COLORS[i % COLORS.length] }}
+                    />
+                  </div>
                   <div className="tile-content">
                     <div className="tile-name">{m.name}</div>
                     <div className="tile-count">{m.count} объяв.</div>
@@ -261,44 +330,7 @@ function App() {
         <h2>Лучшие предложения (Score выгодности)</h2>
         <div className="deals-grid">
           {bestDeals.map(car => (
-            <div key={car.id} className={`deal-card ${car.score > 20 ? 'great' : car.score > 10 ? 'good' : ''}`}>
-              <div className="deal-score">
-                <span className={`score-badge ${car.score > 20 ? 'great' : car.score > 10 ? 'good' : ''}`}>
-                  {car.score > 0 ? '+' : ''}{car.score}
-                </span>
-                <span className="score-label">{car.scoreLabel}</span>
-              </div>
-              <div className="deal-image-wrapper">
-                {car.image ? (
-                  <img
-                    src={car.image}
-                    alt={`${car.brand} ${car.model}`}
-                    className="deal-image"
-                    onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
-                  />
-                ) : null}
-                <div className="deal-image-placeholder" style={{ display: car.image ? 'none' : 'flex' }}>
-                  <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#bbb" strokeWidth="1.5">
-                    <path d="M5 17h14M5 17l2-5h10l2 5M7 12V7a1 1 0 011-1h8a1 1 0 011 1v5" />
-                    <circle cx="7.5" cy="14.5" r="1.5" />
-                    <circle cx="16.5" cy="14.5" r="1.5" />
-                  </svg>
-                  <span>{car.brand} {car.model}</span>
-                </div>
-              </div>
-              <div className="deal-info">
-                <h3>{car.brand} {car.model}</h3>
-                <p>{car.year} год • {formatMileage(car.mileage)}</p>
-                <p>{car.engineVolume} {car.fuelType} / {car.horsepower} л.с.</p>
-                <p className="deal-price">{formatPrice(car.price)}</p>
-                {car.avgPrice && <p className="deal-avg">Средняя: {formatPrice(car.avgPrice)}</p>}
-              </div>
-              {car.url && (
-                <a href={car.url} target="_blank" rel="noopener noreferrer" className="deal-link">
-                  Смотреть на сайте →
-                </a>
-              )}
-            </div>
+            <DealCard key={car.id} car={car} />
           ))}
         </div>
       </div>
