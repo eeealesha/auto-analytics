@@ -14,7 +14,6 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           password: ${{ secrets.DEPLOY_PASSWORD }}
-          script_stops: true
           script: |
             set -e
             cd /var/www/auto-analytics/app
