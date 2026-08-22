@@ -1,4 +1,6 @@
-const MIN_RELIABLE_MILEAGE = 500;
+// AGENTS.md: "Пробег 100 км = новый авто, фильтровать как «новый»".
+// Тот же порог использует фильтр скаттера в App.jsx.
+const MIN_RELIABLE_MILEAGE = 100;
 
 export function calcAnnualMileage(car, currentYear = new Date().getFullYear()) {
   if (!car.mileage || car.mileage <= MIN_RELIABLE_MILEAGE) return null;

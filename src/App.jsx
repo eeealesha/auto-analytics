@@ -185,8 +185,8 @@ function App() {
       fill: COLORS[i % COLORS.length],
     }));
     if (other.length > 0) series.push({ brand: 'Другие', data: other, fill: '#9E9E9E' });
-    return series.filter(s => !hiddenBrands.has(s.brand));
-  }, [scatterData, hiddenBrands]);
+    return series;
+  }, [scatterData]);
 
   const toggleBrand = (entry) => {
     setHiddenBrands(prev => {
@@ -365,7 +365,13 @@ function App() {
               />
               <Legend onClick={toggleBrand} />
               {scatterSeries.map(s => (
-                <Scatter key={s.brand} name={s.brand} data={s.data} fill={s.fill} />
+                <Scatter
+                  key={s.brand}
+                  name={s.brand}
+                  data={s.data}
+                  fill={s.fill}
+                  hide={hiddenBrands.has(s.brand)}
+                />
               ))}
             </ScatterChart>
           </ResponsiveContainer>

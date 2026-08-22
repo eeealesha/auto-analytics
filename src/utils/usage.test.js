@@ -25,9 +25,13 @@ describe('calcAnnualMileage', () => {
     expect(calcAnnualMileage(car, CY)).toBeNull();
   });
 
-  it('returns null for unreliable low mileage (<= 500 km)', () => {
-    const car = { mileage: 100, year: 2021 };
-    expect(calcAnnualMileage(car, CY)).toBeNull();
+  it('returns null at the AGENTS.md "new car" cutoff of 100 km', () => {
+    expect(calcAnnualMileage({ mileage: 100, year: 2021 }, CY)).toBeNull();
+  });
+
+  it('counts a genuine garage queen just above the cutoff', () => {
+    // 400 km over 5 years - exactly the case this section exists to surface
+    expect(calcAnnualMileage({ mileage: 400, year: 2021 }, CY)).toBe(80);
   });
 
   it('returns null when mileage is missing or zero', () => {
