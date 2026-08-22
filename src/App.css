@@ -178,6 +178,74 @@ body {
   margin-bottom: 24px;
 }
 
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.section-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 20px;
+  background: #48b803;
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.slider-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  color: #55555a;
+}
+
+.slider-label input[type='range'] {
+  width: 180px;
+  accent-color: #48b803;
+}
+
+.annual-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 14px;
+  color: white;
+  background: #48b803;
+  margin-bottom: 12px;
+}
+
+.usage-card .deal-price {
+  font-size: 18px;
+}
+
+.chart-hint {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #9c9ca1;
+}
+
+.empty-note {
+  color: #808084;
+  font-size: 15px;
+}
+
 .deals-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));

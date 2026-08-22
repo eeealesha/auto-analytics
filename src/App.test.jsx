@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
+import { formatAnnual } from './utils/usage';
 
 vi.mock('../data/cars.json', () => ({
   default: [
@@ -118,5 +119,45 @@ describe('App smoke tests', () => {
 
     await user.selectOptions(bodySelect, 'all');
     expect(getSubtitleCount(6)).toBeInTheDocument();
+  });
+});
+
+describe('Малоездные авто section', () => {
+  const cy = new Date().getFullYear();
+  const annualOf = (year, mileage) => Math.round(mileage / Math.max(1, cy - year));
+
+  it('renders header with count badge and slider', () => {
+    render(<App />);
+    expect(screen.getByText('Малоездные авто')).toBeInTheDocument();
+    expect(screen.getByRole('slider')).toBeInTheDocument();
+    expect(document.querySelector('.count-badge')).toHaveTextContent('6');
+  });
+
+  it('sorts cards by annual mileage ascending', () => {
+    render(<App />);
+    const cards = document.querySelectorAll('.usage-card');
+    expect(cards).toHaveLength(6);
+    const first = within(cards[0]);
+    expect(first.getByText('Lada Granta')).toBeInTheDocument();
+    const grantaBadge = formatAnnual(annualOf(2023, 5000)).replace(/\u00A0/g, ' ');
+    expect(first.getByText(grantaBadge)).toBeInTheDocument();
+  });
+
+  it('filters cards by slider threshold', () => {
+    render(<App />);
+    const slider = screen.getByRole('slider');
+
+    fireEvent.change(slider, { target: { value: '5500' } });
+
+    const expectedCount = [
+      annualOf(2023, 5000),
+      annualOf(2022, 20000),
+      annualOf(2021, 30000),
+      annualOf(2021, 40000),
+      annualOf(2020, 50000),
+      annualOf(2019, 70000),
+    ].filter(a => a <= 5500).length;
+    expect(document.querySelectorAll('.usage-card')).toHaveLength(expectedCount);
+    expect(document.querySelectorAll('.usage-card .annual-badge')).toHaveLength(expectedCount);
   });
 });

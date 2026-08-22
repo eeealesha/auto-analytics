@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  ScatterChart, Scatter, LineChart, Line, Cell,
+  ScatterChart, Scatter, LineChart, Line, Cell, Legend,
 } from 'recharts';
 import { calculateScore, formatPrice, formatMileage } from './utils/scoreCalculator';
+import { calcAnnualMileage, formatAnnual } from './utils/usage';
 import rawData from '../data/cars.json';
 
 const COLORS = ['#48b803', '#2196F3', '#FF9800', '#E91E63', '#9C27B0', '#00BCD4', '#FF5722', '#607D8B'];
@@ -60,12 +61,33 @@ function DealCard({ car }) {
   );
 }
 
+function UsageCard({ car }) {
+  return (
+    <div className="deal-card usage-card">
+      <div className="deal-info">
+        <span className="annual-badge">{formatAnnual(car.annual)}</span>
+        <h3>{car.brand} {car.model}</h3>
+        <p>{car.year} год • всего {formatMileage(car.mileage)}</p>
+        <p>{car.engineVolume} {car.fuelType} / {car.horsepower} л.с.</p>
+        <p className="deal-price">{formatPrice(car.price)}</p>
+      </div>
+      {car.url && (
+        <a href={car.url} target="_blank" rel="noopener noreferrer" className="deal-link">
+          Смотреть на сайте →
+        </a>
+      )}
+    </div>
+  );
+}
+
 function App() {
   const [brandFilter, setBrandFilter] = useState('all');
   const [yearFrom, setYearFrom] = useState('all');
   const [yearTo, setYearTo] = useState('all');
   const [showDealsOnly, setShowDealsOnly] = useState(false);
   const [bodyTypeFilter, setBodyTypeFilter] = useState('all');
+  const [maxAnnual, setMaxAnnual] = useState(10000);
+  const [hiddenBrands, setHiddenBrands] = useState(new Set());
 
   const cars = useMemo(() => calculateScore(rawData), []);
 
@@ -127,16 +149,66 @@ function App() {
       .slice(0, 10);
   }, [filtered]);
 
-  const mileageVsPrice = useMemo(() => {
-    return filtered
-      .filter(c => c.mileage && c.mileage > 100 && c.mileage < 500000)
+  const scatterData = useMemo(() => {
+    const pts = filtered
+      .filter(c => c.mileage && c.mileage > 100 && c.mileage < 500000 && c.price > 0)
       .map(c => ({
         mileage: c.mileage,
         price: c.price,
-        name: `${c.brand} ${c.model}`,
         brand: c.brand,
+        name: `${c.brand} ${c.model}`,
+        annual: calcAnnualMileage(c),
       }));
+    const counts = {};
+    pts.forEach(p => { counts[p.brand] = (counts[p.brand] || 0) + 1; });
+    const topBrands = new Set(
+      Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 7)
+        .map(([b]) => b)
+    );
+    return { topBrands, pts };
   }, [filtered]);
+
+  const scatterSeries = useMemo(() => {
+    const { topBrands, pts } = scatterData;
+    const groups = {};
+    topBrands.forEach(b => { groups[b] = []; });
+    const other = [];
+    pts.forEach(p => {
+      if (topBrands.has(p.brand)) groups[p.brand].push(p);
+      else other.push(p);
+    });
+    const series = Object.entries(groups).map(([brand, data], i) => ({
+      brand,
+      data,
+      fill: COLORS[i % COLORS.length],
+    }));
+    if (other.length > 0) series.push({ brand: 'Другие', data: other, fill: '#9E9E9E' });
+    return series;
+  }, [scatterData]);
+
+  const toggleBrand = (entry) => {
+    setHiddenBrands(prev => {
+      const next = new Set(prev);
+      if (next.has(entry.value)) next.delete(entry.value);
+      else next.add(entry.value);
+      return next;
+    });
+  };
+
+  const lowUsageAll = useMemo(() => {
+    return filtered
+      .map(c => ({ ...c, annual: calcAnnualMileage(c) }))
+      .filter(c => c.annual !== null);
+  }, [filtered]);
+
+  const lowUsageCars = useMemo(() => {
+    return lowUsageAll
+      .filter(c => c.annual <= maxAnnual)
+      .sort((a, b) => a.annual - b.annual)
+      .slice(0, 8);
+  }, [lowUsageAll, maxAnnual]);
 
   const yearVsPrice = useMemo(() => {
     const map = {};
@@ -274,15 +346,36 @@ function App() {
           <ResponsiveContainer width="100%" height={350}>
             <ScatterChart>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="mileage" name="Пробег" tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
-              <YAxis dataKey="price" name="Цена" tickFormatter={v => `${(v / 1000000).toFixed(1)}M`} />
+              <XAxis dataKey="mileage" name="Пробег" tickFormatter={v => `${(v / 1000).toFixed(0)}k`} type="number" />
+              <YAxis
+                dataKey="price"
+                name="Цена"
+                scale="log"
+                domain={['auto', 'auto']}
+                tickFormatter={v => `${(v / 1000000).toFixed(1)}M`}
+                type="number"
+              />
               <Tooltip
                 formatter={(value, name) => name === 'Цена' ? formatPrice(value) : formatMileage(value)}
-                labelFormatter={(_, payload) => payload[0]?.payload?.name || ''}
+                labelFormatter={(_, payload) => {
+                  const p = payload[0]?.payload;
+                  if (!p) return '';
+                  return p.annual ? `${p.name} • ${formatAnnual(p.annual)}` : p.name;
+                }}
               />
-              <Scatter data={mileageVsPrice} fill="#48b803" />
+              <Legend onClick={toggleBrand} />
+              {scatterSeries.map(s => (
+                <Scatter
+                  key={s.brand}
+                  name={s.brand}
+                  data={s.data}
+                  fill={s.fill}
+                  hide={hiddenBrands.has(s.brand)}
+                />
+              ))}
             </ScatterChart>
           </ResponsiveContainer>
+          <p className="chart-hint">Нажмите на марку в легенде, чтобы скрыть/показать её точки</p>
         </div>
 
         <div className="chart-card">
@@ -324,6 +417,35 @@ function App() {
             })}
           </div>
         </div>
+      </div>
+
+      <div className="deals-section">
+        <div className="section-header">
+          <h2>
+            Малоездные авто
+            <span className="count-badge">{lowUsageAll.filter(c => c.annual <= maxAnnual).length}</span>
+          </h2>
+          <label className="slider-label">
+            Пробег в год до <strong>{formatAnnual(maxAnnual)}</strong>
+            <input
+              type="range"
+              min="5000"
+              max="20000"
+              step="500"
+              value={maxAnnual}
+              onChange={e => setMaxAnnual(Number(e.target.value))}
+            />
+          </label>
+        </div>
+        {lowUsageCars.length === 0 ? (
+          <p className="empty-note">Нет авто с таким годовым пробегом — увеличьте порог</p>
+        ) : (
+          <div className="deals-grid">
+            {lowUsageCars.map(car => (
+              <UsageCard key={car.id} car={car} />
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="deals-section">
