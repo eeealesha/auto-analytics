@@ -5,6 +5,8 @@ import {
 } from 'recharts';
 import { calculateScore, formatPrice, formatMileage } from './utils/scoreCalculator';
 import { calcAnnualMileage, formatAnnual } from './utils/usage';
+import { getSegment, getCarsBySegment, getDefaultThresholds } from './utils/segmentation';
+import SegmentFilter from './components/SegmentFilter';
 import rawData from '../data/cars.json';
 
 const COLORS = ['#48b803', '#2196F3', '#FF9800', '#E91E63', '#9C27B0', '#00BCD4', '#FF5722', '#607D8B'];
@@ -88,6 +90,8 @@ function App() {
   const [bodyTypeFilter, setBodyTypeFilter] = useState('all');
   const [maxAnnual, setMaxAnnual] = useState(10000);
   const [hiddenBrands, setHiddenBrands] = useState(new Set());
+  const [selectedSegment, setSelectedSegment] = useState('all');
+  const [thresholds, setThresholds] = useState(getDefaultThresholds());
 
   const cars = useMemo(() => calculateScore(rawData), []);
 
@@ -110,10 +114,13 @@ function App() {
     return result;
   }, [cars, brandFilter, yearFrom, yearTo, showDealsOnly]);
 
-  const filtered = useMemo(() => {
-    if (bodyTypeFilter === 'all') return baseFiltered;
-    return baseFiltered.filter(c => c.bodyType === bodyTypeFilter);
-  }, [baseFiltered, bodyTypeFilter]);
+  const segmentedCars = useMemo(() => {
+    let cars = getCarsBySegment(baseFiltered, selectedSegment, thresholds);
+    if (bodyTypeFilter !== 'all') {
+      cars = cars.filter(c => c.bodyType === bodyTypeFilter);
+    }
+    return cars;
+  }, [baseFiltered, selectedSegment, thresholds, bodyTypeFilter]);
 
   const bodyTypes = useMemo(() => {
     const map = {};
@@ -134,7 +141,7 @@ function App() {
 
   const priceByBrand = useMemo(() => {
     const map = {};
-    filtered.forEach(c => {
+    segmentedCars.forEach(c => {
       if (!map[c.brand]) map[c.brand] = { brand: c.brand, prices: [], count: 0 };
       map[c.brand].prices.push(c.price);
       map[c.brand].count++;
@@ -147,10 +154,10 @@ function App() {
       }))
       .sort((a, b) => b.avgPrice - a.avgPrice)
       .slice(0, 10);
-  }, [filtered]);
+  }, [segmentedCars]);
 
   const scatterData = useMemo(() => {
-    const pts = filtered
+    const pts = segmentedCars
       .filter(c => c.mileage && c.mileage > 100 && c.mileage < 500000 && c.price > 0)
       .map(c => ({
         mileage: c.mileage,
@@ -168,7 +175,7 @@ function App() {
         .map(([b]) => b)
     );
     return { topBrands, pts };
-  }, [filtered]);
+  }, [segmentedCars]);
 
   const scatterSeries = useMemo(() => {
     const { topBrands, pts } = scatterData;
@@ -198,10 +205,10 @@ function App() {
   };
 
   const lowUsageAll = useMemo(() => {
-    return filtered
+    return segmentedCars
       .map(c => ({ ...c, annual: calcAnnualMileage(c) }))
       .filter(c => c.annual !== null);
-  }, [filtered]);
+  }, [segmentedCars]);
 
   const lowUsageCars = useMemo(() => {
     return lowUsageAll
@@ -212,7 +219,7 @@ function App() {
 
   const yearVsPrice = useMemo(() => {
     const map = {};
-    filtered.forEach(c => {
+    segmentedCars.forEach(c => {
       if (!c.year) return;
       if (!map[c.year]) map[c.year] = { year: c.year, prices: [] };
       map[c.year].prices.push(c.price);
@@ -224,11 +231,11 @@ function App() {
         count: d.prices.length,
       }))
       .sort((a, b) => a.year - b.year);
-  }, [filtered]);
+  }, [segmentedCars]);
 
   const topModels = useMemo(() => {
     const map = {};
-    filtered.forEach(c => {
+    segmentedCars.forEach(c => {
       const key = `${c.brand} ${c.model}`;
       if (!map[key]) map[key] = { name: key, brand: c.brand, model: c.model, count: 0, prices: [], sampleUrl: c.url || null };
       map[key].count++;
@@ -242,17 +249,17 @@ function App() {
       }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
-  }, [filtered]);
+  }, [segmentedCars]);
 
   const bestDeals = useMemo(() => {
-    return [...filtered].sort((a, b) => b.score - a.score).slice(0, 5);
-  }, [filtered]);
+    return [...segmentedCars].sort((a, b) => b.score - a.score).slice(0, 5);
+  }, [segmentedCars]);
 
   const avgMileage = useMemo(() => {
-    const withMileage = filtered.filter(c => c.mileage != null);
+    const withMileage = segmentedCars.filter(c => c.mileage != null);
     if (withMileage.length === 0) return null;
     return Math.round(withMileage.reduce((a, c) => a + c.mileage, 0) / withMileage.length);
-  }, [filtered]);
+  }, [segmentedCars]);
 
   const brandColors = useMemo(() => {
     const map = {};
@@ -265,7 +272,7 @@ function App() {
       <header className="header">
         <h1>Major Expert Auto Analytics</h1>
         <p className="subtitle">
-          {filtered.length} объявлений • Данные с major-expert.ru
+          {segmentedCars.length} объявлений • Данные с major-expert.ru
         </p>
       </header>
 
@@ -285,10 +292,16 @@ function App() {
           {years.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
 
-        <select value={bodyTypeFilter} onChange={e => setBodyTypeFilter(e.target.value)}>
-          <option value="all">Все типы кузова</option>
-          {bodyTypes.map(bt => <option key={bt} value={bt}>{bt}</option>)}
-        </select>
+        <SegmentFilter
+          selectedSegment={selectedSegment}
+          onSegmentChange={setSelectedSegment}
+          economyMax={thresholds.economyMax}
+          luxuryMin={thresholds.luxuryMin}
+          onThresholdsChange={setThresholds}
+          bodyType={bodyTypeFilter}
+          onBodyTypeChange={setBodyTypeFilter}
+          bodyTypes={bodyTypes}
+        />
 
         <label className="checkbox-label">
           <input
@@ -302,12 +315,12 @@ function App() {
 
       <div className="stats-row">
         <div className="stat-card">
-          <div className="stat-value">{filtered.length}</div>
+          <div className="stat-value">{segmentedCars.length}</div>
           <div className="stat-label">Объявлений</div>
         </div>
         <div className="stat-card">
           <div className="stat-value">
-            {filtered.length > 0 ? formatPrice(Math.round(filtered.reduce((a, c) => a + c.price, 0) / filtered.length)) : '—'}
+            {segmentedCars.length > 0 ? formatPrice(Math.round(segmentedCars.reduce((a, c) => a + c.price, 0) / segmentedCars.length)) : '—'}
           </div>
           <div className="stat-label">Средняя цена</div>
         </div>
@@ -318,7 +331,7 @@ function App() {
           <div className="stat-label">Средний пробег</div>
         </div>
         <div className="stat-card">
-          <div className="stat-value">{filtered.filter(c => c.score > 10).length}</div>
+          <div className="stat-value">{segmentedCars.filter(c => c.score > 10).length}</div>
           <div className="stat-label">Выгодных сделок</div>
         </div>
       </div>
