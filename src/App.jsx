@@ -7,6 +7,7 @@ import { calculateScore, formatPrice, formatMileage } from './utils/scoreCalcula
 import { calcAnnualMileage, formatAnnual } from './utils/usage';
 import { getSegment, getCarsBySegment, getDefaultThresholds } from './utils/segmentation';
 import SegmentFilter from './components/SegmentFilter';
+import PriceHistoryChart from './components/PriceHistoryChart';
 import rawData from '../data/cars.json';
 
 const COLORS = ['#48b803', '#2196F3', '#FF9800', '#E91E63', '#9C27B0', '#00BCD4', '#FF5722', '#607D8B'];
@@ -92,6 +93,35 @@ function App() {
   const [hiddenBrands, setHiddenBrands] = useState(new Set());
   const [selectedSegment, setSelectedSegment] = useState('all');
   const [thresholds, setThresholds] = useState(getDefaultThresholds());
+  const [historyData, setHistoryData] = useState(new Map());
+  const [historyDates, setHistoryDates] = useState([]);
+
+  useEffect(() => {
+    async function loadHistory() {
+      try {
+        const modules = import.meta.glob('/data/history/*.json');
+        const dates = [];
+        const data = new Map();
+
+        for (const path of Object.keys(modules)) {
+          const dateMatch = path.match(/(\d{4}-\d{2}-\d{2})\.json$/);
+          if (dateMatch) {
+            const date = dateMatch[1];
+            dates.push(date);
+            const mod = await modules[path]();
+            data.set(date, mod.default || mod);
+          }
+        }
+
+        dates.sort();
+        setHistoryDates(dates);
+        setHistoryData(data);
+      } catch (e) {
+        console.warn('History data not available:', e);
+      }
+    }
+    loadHistory();
+  }, []);
 
   const cars = useMemo(() => calculateScore(rawData), []);
 
@@ -430,6 +460,16 @@ function App() {
             })}
           </div>
         </div>
+      </div>
+
+      <div className="deals-section">
+        <PriceHistoryChart
+          historyDates={historyDates}
+          historyData={historyData}
+          selectedSegment={selectedSegment}
+          thresholds={thresholds}
+          selectedBrand="all"
+        />
       </div>
 
       <div className="deals-section">
