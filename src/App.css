@@ -378,6 +378,97 @@ body {
   background: #e9e9ed;
 }
 
+.segment-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 24px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.segment-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.segment-btn {
+  padding: 8px 16px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.segment-btn.active {
+  background: #0066cc;
+  color: white;
+  border-color: #0066cc;
+}
+
+.segment-btn:hover:not(.active) {
+  background: #e9ecef;
+}
+
+.segment-sliders {
+  display: flex;
+  gap: 24px;
+}
+
+.segment-sliders label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: #666;
+}
+
+.segment-sliders input[type="range"] {
+  width: 200px;
+}
+
+.history-controls {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.history-controls select {
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.change-badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.change-badge.up {
+  background: #fee;
+  color: #c00;
+}
+
+.change-badge.down {
+  background: #efe;
+  color: #060;
+}
+
+.no-data {
+  color: #999;
+  font-style: italic;
+  text-align: center;
+  padding: 40px;
+}
+
 @media (max-width: 768px) {
   .stats-row {
     grid-template-columns: repeat(2, 1fr);
