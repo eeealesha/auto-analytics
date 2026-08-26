@@ -1,16 +1,50 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  ScatterChart, Scatter, LineChart, Line, Cell, Legend,
+  ScatterChart, Scatter, LineChart, Line, Cell, Legend, Customized,
 } from 'recharts';
 import { calculateScore, formatPrice, formatMileage } from './utils/scoreCalculator';
 import { calcAnnualMileage, formatAnnual } from './utils/usage';
 import { getSegment, getCarsBySegment, getDefaultThresholds } from './utils/segmentation';
+import { linearRegression } from './utils/trendLine';
 import SegmentFilter from './components/SegmentFilter';
 import PriceHistoryChart from './components/PriceHistoryChart';
 import rawData from '../data/cars.json';
 
 const COLORS = ['#48b803', '#2196F3', '#FF9800', '#E91E63', '#9C27B0', '#00BCD4', '#FF5722', '#607D8B'];
+
+function TrendLines({ scatterSeries, hiddenBrands, xAxisMap, yAxisMap }) {
+  const xScale = xAxisMap && Object.values(xAxisMap)[0]?.scale
+  const yScale = yAxisMap && Object.values(yAxisMap)[0]?.scale
+  if (!xScale || !yScale) return null
+
+  return (
+    <g>
+      {scatterSeries.map(s => {
+        if (hiddenBrands.has(s.brand) || s.data.length < 2) return null
+        const points = s.data.map(p => ({ x: p.mileage, y: p.price }))
+        const { slope, intercept } = linearRegression(points)
+        const xMin = Math.min(...s.data.map(p => p.mileage))
+        const xMax = Math.max(...s.data.map(p => p.mileage))
+        const y1 = slope * xMin + intercept
+        const y2 = slope * xMax + intercept
+        return (
+          <line
+            key={`trend-${s.brand}`}
+            x1={xScale(xMin)}
+            y1={yScale(y1)}
+            x2={xScale(xMax)}
+            y2={yScale(y2)}
+            stroke={s.fill}
+            strokeWidth={2}
+            strokeDasharray="5 5"
+            opacity={0.7}
+          />
+        )
+      })}
+    </g>
+  )
+}
 
 function listingUrlFromCarUrl(carUrl) {
   if (!carUrl) return null;
@@ -407,6 +441,9 @@ function App() {
                 }}
               />
               <Legend onClick={toggleBrand} />
+              <Customized
+                component={<TrendLines scatterSeries={scatterSeries} hiddenBrands={hiddenBrands} />}
+              />
               {scatterSeries.map(s => (
                 <Scatter
                   key={s.brand}
