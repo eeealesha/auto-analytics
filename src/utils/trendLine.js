@@ -11,7 +11,10 @@ export function linearRegression(points) {
     sumX2 += x * x
   }
 
-  const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX)
+  const denom = n * sumX2 - sumX * sumX
+  if (denom === 0) return { slope: 0, intercept: sumY / n }
+
+  const slope = (n * sumXY - sumX * sumY) / denom
   const intercept = (sumY - slope * sumX) / n
 
   return { slope, intercept }

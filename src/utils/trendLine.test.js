@@ -22,6 +22,13 @@ describe('linearRegression', () => {
     expect(intercept).toBe(0)
   })
 
+  it('handles identical x values (division by zero)', () => {
+    const points = [{ x: 5, y: 1 }, { x: 5, y: 2 }, { x: 5, y: 3 }]
+    const { slope, intercept } = linearRegression(points)
+    expect(slope).toBe(0)
+    expect(intercept).toBe(2)
+  })
+
   it('computes best fit for noisy data', () => {
     const points = [{ x: 1, y: 2.1 }, { x: 2, y: 3.9 }, { x: 3, y: 6.1 }]
     const { slope, intercept } = linearRegression(points)

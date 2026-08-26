@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { getSegment } from '../utils/segmentation'
 
@@ -11,6 +11,14 @@ export default function PriceHistoryChart({
 }) {
   const [startDate, setStartDate] = useState(historyDates[historyDates.length - 1] || '')
   const [brand, setBrand] = useState(selectedBrand || 'all')
+
+  useEffect(() => {
+    setStartDate(historyDates[historyDates.length - 1] || '')
+  }, [historyDates])
+
+  useEffect(() => {
+    setBrand(selectedBrand || 'all')
+  }, [selectedBrand])
 
   const brands = useMemo(() => {
     const set = new Set()
