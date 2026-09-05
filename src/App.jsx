@@ -135,20 +135,34 @@ function App() {
   const [rawCars, setRawCars] = useState(null);
   const [sourceFilter, setSourceFilter] = useState('all');
   const [metaSources, setMetaSources] = useState([]);
+  const [apiError, setApiError] = useState(null);
 
   useEffect(() => {
+    let cancelled = false;
+
+    // Ответ с кодом 4xx/5xx тоже успешно парсится как JSON, поэтому res.ok
+    // проверяем отдельно: иначе тело {error:'...'} уедет в rawCars вместо массива.
+    async function readJson(res, label) {
+      if (!res.ok) throw new Error(`${label}: HTTP ${res.status}`);
+      return res.json();
+    }
+
     async function loadData() {
       try {
         const [offersRes, historyRes, metaRes] = await Promise.all([
           fetch('/api/offers'),
-          fetch('/api/history' + (sourceFilter !== 'all' ? `?source=${sourceFilter}` : '')),
+          fetch('/api/history' + (sourceFilter !== 'all' ? `?source=${encodeURIComponent(sourceFilter)}` : '')),
           fetch('/api/meta'),
         ]);
-        const nextOffers = await offersRes.json();
-        const history = await historyRes.json();
-        const meta = await metaRes.json();
+        const nextOffers = await readJson(offersRes, '/api/offers');
+        const history = await readJson(historyRes, '/api/history');
+        const meta = await readJson(metaRes, '/api/meta');
+        if (!Array.isArray(nextOffers)) throw new Error('/api/offers вернул не массив');
+        if (cancelled) return;
+
+        setApiError(null);
         setRawCars(nextOffers);
-        setMetaSources(meta.sources || []);
+        setMetaSources(meta?.sources || []);
 
         const dates = history?.dates || [];
         const byDate = history?.byDate || {};
@@ -156,11 +170,18 @@ function App() {
         setHistoryDates(dates);
         setHistoryData(data);
       } catch (e) {
+        if (cancelled) return;
         console.warn('API недоступен:', e);
+        setApiError(e.message || String(e));
         setRawCars([]);
+        setMetaSources([]);
+        setHistoryDates([]);
+        setHistoryData(new Map());
       }
     }
+
     loadData();
+    return () => { cancelled = true; };
   }, [sourceFilter]);
 
   const cars = useMemo(() => calculateScore(rawCars || []), [rawCars]);
@@ -354,6 +375,12 @@ function App() {
           {rawCars === null ? 'Загрузка данных…' : `${segmentedCars.length} объявлений`}
         </p>
       </header>
+
+      {apiError && (
+        <p className="api-error" role="alert">
+          Не удалось загрузить данные с сервера ({apiError}). Показан пустой дашборд — обновите страницу позже.
+        </p>
+      )}
 
       <div className="filters">
         <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)} aria-label="Источник">

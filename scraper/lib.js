@@ -27,3 +27,24 @@ export function deduplicate(cars) {
     return true;
   });
 }
+
+// Доля от заявленного total, ниже которой прогон считаем неполным.
+const MIN_COVERAGE = 0.5;
+
+// Прогон неполный, если страницы падали ИЛИ выкачана малая доля от заявленного
+// количества. Второе ловит смену формата пагинации у источника: ошибок нет,
+// lastPage выродился в 0, и без этой проверки деактивация вычистила бы источник.
+export function isPartialScrape({ failedPages = 0, scraped = 0, total = 0 } = {}) {
+  if (failedPages > 0) return true;
+  if (total > 0 && scraped < total * MIN_COVERAGE) return true;
+  return false;
+}
+
+// offers.price объявлен BIGINT NOT NULL: одно объявление без цены откатило бы
+// всю транзакцию, поэтому такие отсеиваем до синхронизации.
+export function syncableCars(cars) {
+  return cars.filter(car => {
+    const price = Number(car.price);
+    return Number.isFinite(price) && price > 0;
+  });
+}

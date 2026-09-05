@@ -17,6 +17,8 @@ const history = { dates: [], byDate: {} };
 
 beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn((url) => Promise.resolve({
+    ok: true,
+    status: 200,
     json: () => {
       if (url === '/api/offers') return Promise.resolve(offers);
       if (url === '/api/meta') return Promise.resolve({ sources: ['major-expert'], brands: ['Toyota', 'BMW', 'Lada'], years: [2019, 2020, 2021, 2022, 2023] });
@@ -190,6 +192,8 @@ describe('Источник filter', () => {
 
   it('переключает объявления и подпись по источнику', async () => {
     vi.stubGlobal('fetch', vi.fn((url) => Promise.resolve({
+      ok: true,
+      status: 200,
       json: () => {
         if (url === '/api/offers') return Promise.resolve(mixed);
         if (url === '/api/meta') return Promise.resolve({ sources: ['major-expert', 'rolf'], brands: [], years: [] });

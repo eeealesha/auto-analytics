@@ -43,3 +43,33 @@ describe('matchCars', () => {
     expect(pairs[0].carsBySource['rolf'].id).toBe(2);
   });
 });
+
+describe('findMatches при нескольких объявлениях одной спецификации', () => {
+  const spec = { brand: 'BMW', model: 'X5', year: 2021, engineVolume: 2 };
+  const cars = [
+    { ...spec, source: 'major-expert', id: 1, price: 6000000 },
+    { ...spec, source: 'major-expert', id: 2, price: 4500000 },
+    { ...spec, source: 'major-expert', id: 3, price: 5200000 },
+    { ...spec, source: 'rolf', id: 4, price: 5500000 },
+    { ...spec, source: 'rolf', id: 5, price: 5000000 },
+  ];
+
+  it('представителем источника берёт самое дешёвое предложение, а не последнее', () => {
+    const [pair] = findMatches(cars);
+    expect(pair.carsBySource['major-expert'].price).toBe(4500000);
+    expect(pair.carsBySource['rolf'].price).toBe(5000000);
+  });
+
+  it('не теряет остальные объявления из счёта', () => {
+    const [pair] = findMatches(cars);
+    expect(pair.countsBySource['major-expert']).toBe(3);
+    expect(pair.countsBySource['rolf']).toBe(2);
+  });
+
+  it('сравнение указывает на источник, где реально дешевле', () => {
+    const [pair] = findMatches(cars);
+    const me = pair.carsBySource['major-expert'].price;
+    const rolf = pair.carsBySource['rolf'].price;
+    expect(me < rolf).toBe(true);
+  });
+});

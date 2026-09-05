@@ -50,6 +50,9 @@ export default function SourceComparison({ cars, sources }) {
                 <div key={source} className="comparison-col">
                   <h4>{SOURCE_LABELS[source] || source}</h4>
                   <p className="cmp-name">{car.brand} {car.model} · {car.year}</p>
+                  {pair.countsBySource?.[source] > 1 && (
+                    <p className="cmp-count">лучшее из {pair.countsBySource[source]} объявлений</p>
+                  )}
                   <table className="cmp-table">
                     <tbody>
                       {FIELDS.map(f => {

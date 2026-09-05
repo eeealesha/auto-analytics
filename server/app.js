@@ -1,7 +1,8 @@
+import path from 'node:path';
 import express from 'express';
 import { offerRowToCar, historyRowsToDays } from './serialize.js';
 
-export function createApp(db) {
+export function createApp(db, { staticDir } = {}) {
   const app = express();
 
   app.get('/api/health', (req, res) => {
@@ -40,6 +41,19 @@ export function createApp(db) {
       next(err);
     }
   });
+
+  // Неизвестный /api/* — честный 404 JSON, иначе его перехватит SPA-catch-all
+  // ниже и клиент получит index.html со статусом 200.
+  app.use('/api', (req, res) => {
+    res.status(404).json({ error: 'not found' });
+  });
+
+  // Статика регистрируется здесь, а не после createApp: Express подбирает
+  // обработчик ошибок только среди зарегистрированных ПОСЛЕ упавшего middleware.
+  if (staticDir) {
+    app.use(express.static(staticDir));
+    app.get('/*splat', (req, res) => res.sendFile(path.join(staticDir, 'index.html')));
+  }
 
   // error-handler: обязательны 4 аргумента, иначе Express не считает его таковым
   app.use((err, req, res, next) => {

@@ -189,8 +189,10 @@ export async function getHistory(pool, { source, days = 90 } = {}) {
 }
 
 export async function getMeta(pool) {
-  const sources = (await pool.query('SELECT DISTINCT source FROM offers ORDER BY source')).rows.map(r => r.source);
-  const brands = (await pool.query('SELECT DISTINCT brand FROM offers ORDER BY brand')).rows.map(r => r.brand);
-  const years = (await pool.query('SELECT DISTINCT year FROM offers WHERE year IS NOT NULL ORDER BY year DESC')).rows.map(r => r.year);
+  // Только активные: getOffers жёстко фильтрует по is_active, и без такого же
+  // условия здесь в выпадашки попадают марки, по которым нет ни одного объявления.
+  const sources = (await pool.query('SELECT DISTINCT source FROM offers WHERE is_active ORDER BY source')).rows.map(r => r.source);
+  const brands = (await pool.query('SELECT DISTINCT brand FROM offers WHERE is_active ORDER BY brand')).rows.map(r => r.brand);
+  const years = (await pool.query('SELECT DISTINCT year FROM offers WHERE is_active AND year IS NOT NULL ORDER BY year DESC')).rows.map(r => r.year);
   return { sources, brands, years };
 }

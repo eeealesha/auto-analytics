@@ -2,7 +2,7 @@ import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import { createPool, initSchema, applySync } from './db.js';
-import { HEADERS, delay, ensureDirs, deduplicate } from './lib.js';
+import { HEADERS, delay, ensureDirs, deduplicate, isPartialScrape, syncableCars } from './lib.js';
 
 const API_URL = 'https://www.major-expert.ru/api/v1/public/cars/items-by-url';
 const DELAY_MS = 300;
@@ -116,11 +116,14 @@ async function scrapeAll(maxPages = Infinity) {
     const pool = createPool(process.env.DATABASE_URL);
     try {
       await initSchema(pool);
-      const partial = failedPages > 0;
+      const partial = isPartialScrape({ failedPages, scraped: uniqueCars.length, total: first.total });
       if (partial) {
-        console.warn(`  WARNING: ${failedPages} page(s) failed — partial data, deactivation skipped`);
+        console.warn(`  WARNING: partial scrape (${failedPages} failed page(s), ${uniqueCars.length}/${first.total} offers) — deactivation skipped`);
       }
-      const result = await applySync(pool, { source: 'major-expert', cars: uniqueCars, today, deactivate: !partial });
+      const cars = syncableCars(uniqueCars);
+      const skipped = uniqueCars.length - cars.length;
+      if (skipped > 0) console.warn(`  WARNING: ${skipped} offer(s) without a price skipped`);
+      const result = await applySync(pool, { source: 'major-expert', cars, today, deactivate: !partial });
       console.log(`DB sync: ${result.inserted} new, ${result.updated} updated, ${result.deactivated} deactivated`);
     } finally {
       await pool.end();
@@ -140,4 +143,7 @@ const args = process.argv.slice(2);
 const pagesArg = args.find(a => a.startsWith('--pages='));
 const maxPages = pagesArg ? parseInt(pagesArg.split('=')[1]) : Infinity;
 
-scrapeAll(maxPages).catch(console.error);
+scrapeAll(maxPages).catch(err => {
+  console.error(err);
+  process.exit(1);
+});

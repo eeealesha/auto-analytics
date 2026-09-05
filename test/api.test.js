@@ -68,3 +68,12 @@ describe('API', () => {
     expect(res.status).toBe(500);
   });
 });
+
+describe('неизвестные эндпоинты', () => {
+  it('/api/* без совпадения отдаёт 404 JSON, а не index.html', async () => {
+    const app = createApp(makeDb());
+    const res = await request(app).get('/api/offer');
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: 'not found' });
+  });
+});

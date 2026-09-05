@@ -51,3 +51,17 @@ describe('SourceComparison', () => {
     expect(screen.getByText(/Нет авто, встречающихся на обоих источниках/)).toBeInTheDocument();
   });
 });
+
+describe('SourceComparison со множественными объявлениями', () => {
+  const spec = { brand: 'BMW', model: 'X5', year: 2021, engineVolume: 2 };
+  const cars = [
+    { ...spec, source: 'major-expert', id: 1, price: 6000000 },
+    { ...spec, source: 'major-expert', id: 2, price: 4500000 },
+    { ...spec, source: 'rolf', id: 3, price: 5000000 },
+  ];
+
+  it('подписывает, сколько объявлений свёрнуто в строку', () => {
+    render(<SourceComparison cars={cars} sources={['major-expert', 'rolf']} />);
+    expect(screen.getByText('лучшее из 2 объявлений')).toBeInTheDocument();
+  });
+});

@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { HEADERS, delay, ensureDirs, deduplicate } from './lib.js';
+import { HEADERS, delay, ensureDirs, deduplicate, isPartialScrape, syncableCars } from './lib.js';
 import { createPool, initSchema, applySync } from './db.js';
 import axios from 'axios';
 
@@ -108,13 +108,16 @@ export async function scrapeAll(maxPages = Infinity) {
     const pool = createPool(process.env.DATABASE_URL);
     try {
       await initSchema(pool);
-      const partial = failedPages > 0;
+      const partial = isPartialScrape({ failedPages, scraped: uniqueCars.length, total: first.total });
       if (partial) {
-        console.warn(`  WARNING: ${failedPages} page(s) failed — partial data, deactivation skipped`);
+        console.warn(`  WARNING: partial scrape (${failedPages} failed page(s), ${uniqueCars.length}/${first.total} offers) — deactivation skipped`);
       }
+      const cars = syncableCars(uniqueCars);
+      const skipped = uniqueCars.length - cars.length;
+      if (skipped > 0) console.warn(`  WARNING: ${skipped} offer(s) without a price skipped`);
       const result = await applySync(pool, {
         source: 'rolf',
-        cars: uniqueCars,
+        cars,
         today: new Date().toISOString().split('T')[0],
         deactivate: !partial,
       });
@@ -133,4 +136,7 @@ export async function scrapeAll(maxPages = Infinity) {
 
 const args = process.argv.slice(2);
 const pagesArg = args.find(a => a.startsWith('--pages='));
-scrapeAll(pagesArg ? parseInt(pagesArg.split('=')[1]) : Infinity).catch(console.error);
+scrapeAll(pagesArg ? parseInt(pagesArg.split('=')[1]) : Infinity).catch(err => {
+  console.error(err);
+  process.exit(1);
+});

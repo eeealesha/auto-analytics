@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect, vi } from 'vitest';
-import { offerToRow, buildOfferQuery, initSchema, applySync, getOffers, getHistory } from '../scraper/db.js';
+import { offerToRow, buildOfferQuery, initSchema, applySync, getOffers, getHistory, getMeta } from '../scraper/db.js';
 
 describe('getHistory SQL', () => {
   it('содержит неявный каст $1::int в where-условии (offline)', async () => {
@@ -168,5 +168,15 @@ describe('getHistory (интеграция с PostgreSQL)', () => {
 
     await pool.query('DELETE FROM offers WHERE source = $1', ['test-history']);
     await pool.end();
+  });
+});
+
+describe('getMeta', () => {
+  it('перечисляет только активные объявления — иначе в фильтрах остаются марки без выборки', async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [] });
+    await getMeta({ query });
+    const sqls = query.mock.calls.map(c => c[0]);
+    expect(sqls).toHaveLength(3);
+    sqls.forEach(sql => expect(sql).toMatch(/is_active/));
   });
 });

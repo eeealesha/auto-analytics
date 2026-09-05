@@ -11,16 +11,19 @@ jobs:
     steps:
       - name: Scrape and sync DB on server
         uses: appleboy/ssh-action@v1
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           password: ${{ secrets.DEPLOY_PASSWORD }}
-          env: |
-            DATABASE_URL=${{ secrets.DATABASE_URL }}
+          envs: DATABASE_URL
           script: |
+            set -e
             cd /var/www/auto-analytics/app
-            git pull origin master
-            npm install
+            git fetch origin
+            git reset --hard origin/master
+            npm ci
             AUTO_MIGRATE=1 node scraper/migrate.js
             node scraper/cleanup.js
             node scraper/index.js

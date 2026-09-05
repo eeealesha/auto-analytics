@@ -1,6 +1,5 @@
 import path from 'node:path';
 import fs from 'node:fs';
-import express from 'express';
 import { createApp } from './app.js';
 import { createPool, getOffers, getHistory, getMeta } from '../scraper/db.js';
 
@@ -19,15 +18,10 @@ const db = {
   getMeta: () => getMeta(pool),
 };
 
-const app = createApp(db);
-
 // Подстраховка: статику отдаём из Express, если dist собран.
 // Штатно статику отдаёт nginx, а /api проксируется на этот сервис.
 const distDir = path.join(process.cwd(), 'dist');
-if (fs.existsSync(distDir)) {
-  app.use(express.static(distDir));
-  app.get('/*splat', (req, res) => res.sendFile(path.join(distDir, 'index.html')));
-}
+const app = createApp(db, { staticDir: fs.existsSync(distDir) ? distDir : undefined });
 
 app.listen(PORT, () => {
   console.log(`Auto-analytics API on http://127.0.0.1:${PORT}`);
