@@ -1,22 +1,25 @@
-name: Deploy to Server
+name: Daily Scrape
 
 on:
-  push:
-    branches: [master]
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
 
 jobs:
-  deploy:
+  scrape:
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy via SSH
+      - name: Scrape and sync DB on server
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           password: ${{ secrets.DEPLOY_PASSWORD }}
+          env: |
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
           script: |
             cd /var/www/auto-analytics/app
             git pull origin master
             npm install
-            npm run build
-            systemctl reload nginx
+            AUTO_MIGRATE=1 node scraper/migrate.js
+            node scraper/index.js

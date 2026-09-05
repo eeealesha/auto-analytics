@@ -1,0 +1,13 @@
+[Unit]
+Description=Auto-Analytics API (Express + PostgreSQL)
+After=network.target postgresql.service
+
+[Service]
+WorkingDirectory=/var/www/auto-analytics/app
+ExecStart=/usr/bin/node server/index.js
+EnvironmentFile=/etc/auto-analytics.env
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
