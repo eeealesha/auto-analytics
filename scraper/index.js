@@ -2,27 +2,13 @@ import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import { createPool, initSchema, applySync } from './db.js';
+import { HEADERS, delay, ensureDirs, deduplicate } from './lib.js';
 
 const API_URL = 'https://www.major-expert.ru/api/v1/public/cars/items-by-url';
 const DELAY_MS = 300;
 const DATA_DIR = path.join(process.cwd(), 'data');
 const HISTORY_DIR = path.join(DATA_DIR, 'history');
 const PER_PAGE = 12;
-
-const HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  'Accept': 'application/json',
-  'Content-Type': 'application/json',
-};
-
-function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-function ensureDirs() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(HISTORY_DIR)) fs.mkdirSync(HISTORY_DIR, { recursive: true });
-}
 
 function normalizeCar(item) {
   const ch = item.characteristics || {};
@@ -148,15 +134,6 @@ async function scrapeAll(maxPages = Infinity) {
   console.log(`History snapshot: ${historyPath}`);
 
   return uniqueCars;
-}
-
-function deduplicate(cars) {
-  const seen = new Set();
-  return cars.filter(car => {
-    if (seen.has(car.id)) return false;
-    seen.add(car.id);
-    return true;
-  });
 }
 
 const args = process.argv.slice(2);
