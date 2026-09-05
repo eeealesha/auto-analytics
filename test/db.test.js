@@ -1,6 +1,14 @@
 // @vitest-environment node
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { offerToRow, buildOfferQuery, initSchema, applySync, getOffers, getHistory } from '../scraper/db.js';
+
+describe('getHistory SQL', () => {
+  it('содержит неявный каст $1::int в where-условии (offline)', async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [] });
+    await getHistory({ query }, { days: 30 });
+    expect(query).toHaveBeenCalledWith(expect.stringContaining('CURRENT_DATE - $1::int'), [30]);
+  });
+});
 
 describe('offerToRow', () => {
   it('маппит camelCase объявление в snake_case строку БД', () => {

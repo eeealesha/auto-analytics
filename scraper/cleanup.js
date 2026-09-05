@@ -2,7 +2,7 @@ import { createPool } from './db.js';
 
 export async function runCleanup(pool, days = 90) {
   const { rowCount } = await pool.query(
-    'DELETE FROM price_history WHERE date < CURRENT_DATE - $1',
+    'DELETE FROM price_history WHERE date < CURRENT_DATE - $1::int',
     [days],
   );
   return rowCount;
