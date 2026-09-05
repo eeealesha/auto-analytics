@@ -1,50 +1,60 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, within, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
 import { formatAnnual } from './utils/usage';
 
-vi.mock('../data/cars.json', () => ({
-  default: [
-    { id: 1, brand: 'Toyota', model: 'Camry', year: 2020, price: 2000000, mileage: 50000, bodyType: 'Седан', fuelType: 'Бензин', engineVolume: 2.5, horsepower: 181, url: 'https://example.com/1', image: '' },
-    { id: 2, brand: 'Toyota', model: 'Camry', year: 2021, price: 2500000, mileage: 30000, bodyType: 'Седан', fuelType: 'Бензин', engineVolume: 2.5, horsepower: 181, url: 'https://example.com/2', image: '' },
-    { id: 3, brand: 'Toyota', model: 'Camry', year: 2019, price: 1800000, mileage: 70000, bodyType: 'Седан', fuelType: 'Бензин', engineVolume: 2.5, horsepower: 181, url: 'https://example.com/3', image: '' },
-    { id: 4, brand: 'BMW', model: 'X5', year: 2022, price: 5000000, mileage: 20000, bodyType: 'Внедорожник', fuelType: 'Дизель', engineVolume: 3.0, horsepower: 286, url: 'https://example.com/4', image: '' },
-    { id: 5, brand: 'BMW', model: 'X5', year: 2021, price: 4500000, mileage: 40000, bodyType: 'Внедорожник', fuelType: 'Дизель', engineVolume: 3.0, horsepower: 286, url: 'https://example.com/5', image: '' },
-    { id: 6, brand: 'Lada', model: 'Granta', year: 2023, price: 800000, mileage: 5000, bodyType: 'Седан', fuelType: 'Бензин', engineVolume: 1.6, horsepower: 98, url: 'https://example.com/6', image: '' },
-  ],
-}));
+const offers = [
+  { id: 1, source: 'major-expert', brand: 'Toyota', model: 'Camry', year: 2020, price: 2000000, mileage: 50000, bodyType: 'Седан', fuelType: 'Бензин', engineVolume: 2.5, horsepower: 181, url: 'https://example.com/1', image: '' },
+  { id: 2, source: 'major-expert', brand: 'Toyota', model: 'Camry', year: 2021, price: 2500000, mileage: 30000, bodyType: 'Седан', fuelType: 'Бензин', engineVolume: 2.5, horsepower: 181, url: 'https://example.com/2', image: '' },
+  { id: 3, source: 'major-expert', brand: 'Toyota', model: 'Camry', year: 2019, price: 1800000, mileage: 70000, bodyType: 'Седан', fuelType: 'Бензин', engineVolume: 2.5, horsepower: 181, url: 'https://example.com/3', image: '' },
+  { id: 4, source: 'major-expert', brand: 'BMW', model: 'X5', year: 2022, price: 5000000, mileage: 20000, bodyType: 'Внедорожник', fuelType: 'Дизель', engineVolume: 3.0, horsepower: 286, url: 'https://example.com/4', image: '' },
+  { id: 5, source: 'major-expert', brand: 'BMW', model: 'X5', year: 2021, price: 4500000, mileage: 40000, bodyType: 'Внедорожник', fuelType: 'Дизель', engineVolume: 3.0, horsepower: 286, url: 'https://example.com/5', image: '' },
+  { id: 6, source: 'major-expert', brand: 'Lada', model: 'Granta', year: 2023, price: 800000, mileage: 5000, bodyType: 'Седан', fuelType: 'Бензин', engineVolume: 1.6, horsepower: 98, url: 'https://example.com/6', image: '' },
+];
 
-function getSubtitleCount(n) {
-  const subtitle = screen.getByText(/объявлений.*major-expert/);
-  return within(subtitle).getByText(new RegExp(`^${n}\\s`));
+const history = { dates: [], byDate: {} };
+
+beforeEach(() => {
+  vi.stubGlobal('fetch', vi.fn((url) => Promise.resolve({
+    json: () => Promise.resolve(url === '/api/offers' ? offers : history),
+  })));
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+async function getSubtitleCount(n) {
+  const subtitle = await screen.findByText(new RegExp(`^${n}\\sобъявлений$`));
+  return subtitle;
 }
 
 describe('App smoke tests', () => {
-  it('renders header with title', () => {
+  it('renders header with title', async () => {
     render(<App />);
-    expect(screen.getByText('Major Expert Auto Analytics')).toBeInTheDocument();
+    expect(await screen.findByText('Major Expert Auto Analytics')).toBeInTheDocument();
   });
 
-  it('displays total count of listings', () => {
+  it('displays total count of listings', async () => {
     render(<App />);
-    expect(getSubtitleCount(6)).toBeInTheDocument();
+    await getSubtitleCount(6);
   });
 
-  it('renders all filter controls', () => {
+  it('renders all filter controls', async () => {
     render(<App />);
+    await screen.findByText('Все марки');
     const selects = screen.getAllByRole('combobox');
     expect(selects).toHaveLength(4);
-
-    expect(screen.getByText('Все марки')).toBeInTheDocument();
     expect(screen.getByText('Год от')).toBeInTheDocument();
     expect(screen.getByText('Год до')).toBeInTheDocument();
     expect(screen.getByText('Все типы кузова')).toBeInTheDocument();
     expect(screen.getByText('Только выгодные предложения')).toBeInTheDocument();
   });
 
-  it('does not render chip buttons', () => {
+  it('does not render chip buttons', async () => {
     render(<App />);
+    await screen.findByText('Все марки');
     expect(screen.queryByRole('button', { name: /все типы/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /седан/i })).not.toBeInTheDocument();
   });
@@ -52,59 +62,59 @@ describe('App smoke tests', () => {
   it('filters by brand', async () => {
     const user = userEvent.setup();
     render(<App />);
-
+    await screen.findByText('Все марки');
     await user.selectOptions(screen.getAllByRole('combobox')[0], 'BMW');
-    expect(getSubtitleCount(2)).toBeInTheDocument();
+    await getSubtitleCount(2);
   });
 
   it('filters by body type via selector', async () => {
     const user = userEvent.setup();
     render(<App />);
-
+    await screen.findByText('Все марки');
     await user.selectOptions(screen.getAllByRole('combobox')[3], 'Внедорожник');
-    expect(getSubtitleCount(2)).toBeInTheDocument();
+    await getSubtitleCount(2);
   });
 
   it('filters by year range', async () => {
     const user = userEvent.setup();
     render(<App />);
-
+    await screen.findByText('Все марки');
     await user.selectOptions(screen.getAllByRole('combobox')[1], '2021');
-    expect(getSubtitleCount(4)).toBeInTheDocument();
+    await getSubtitleCount(4);
   });
 
   it('filters by deals only', async () => {
     const user = userEvent.setup();
     render(<App />);
-
+    await screen.findByText('Все марки');
     await user.click(screen.getByRole('checkbox'));
-    expect(screen.getByText(/объявлений/)).toBeInTheDocument();
+    await screen.findByText(/объявлений/);
   });
 
-  it('renders stats row', () => {
+  it('renders stats row', async () => {
     render(<App />);
-    expect(screen.getByText('Объявлений')).toBeInTheDocument();
+    await screen.findByText('Объявлений');
     expect(screen.getByText('Средняя цена')).toBeInTheDocument();
     expect(screen.getByText('Средний пробег')).toBeInTheDocument();
     expect(screen.getByText('Выгодных сделок')).toBeInTheDocument();
   });
 
-  it('renders charts section', () => {
+  it('renders charts section', async () => {
     render(<App />);
-    expect(screen.getByText('Средняя цена по маркам (Топ-10)')).toBeInTheDocument();
+    await screen.findByText('Средняя цена по маркам (Топ-10)');
     expect(screen.getByText('Пробег vs Цена')).toBeInTheDocument();
     expect(screen.getByText('Год выпуска vs Средняя цена')).toBeInTheDocument();
     expect(screen.getByText('Топ-10 популярных моделей')).toBeInTheDocument();
   });
 
-  it('renders deals section', () => {
+  it('renders deals section', async () => {
     render(<App />);
-    expect(screen.getByText(/Лучшие предложения/)).toBeInTheDocument();
+    expect(await screen.findByText(/Лучшие предложения/)).toBeInTheDocument();
   });
 
-  it('renders model tiles', () => {
+  it('renders model tiles', async () => {
     render(<App />);
-    expect(screen.getAllByText('Toyota Camry').length).toBeGreaterThanOrEqual(1);
+    expect((await screen.findAllByText('Toyota Camry')).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('BMW X5').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Lada Granta').length).toBeGreaterThanOrEqual(1);
   });
@@ -112,13 +122,14 @@ describe('App smoke tests', () => {
   it('resets body type when switching to "all"', async () => {
     const user = userEvent.setup();
     render(<App />);
+    await screen.findByText('Все марки');
 
     const bodySelect = screen.getAllByRole('combobox')[3];
     await user.selectOptions(bodySelect, 'Седан');
-    expect(getSubtitleCount(4)).toBeInTheDocument();
+    await getSubtitleCount(4);
 
     await user.selectOptions(bodySelect, 'all');
-    expect(getSubtitleCount(6)).toBeInTheDocument();
+    await getSubtitleCount(6);
   });
 });
 
@@ -126,16 +137,17 @@ describe('Малоездные авто section', () => {
   const cy = new Date().getFullYear();
   const annualOf = (year, mileage) => Math.round(mileage / Math.max(1, cy - year));
 
-  it('renders header with count badge and slider', () => {
+  it('renders header with count badge and slider', async () => {
     render(<App />);
-    expect(screen.getByText('Малоездные авто')).toBeInTheDocument();
+    await screen.findByText('Малоездные авто');
     const sliders = screen.getAllByRole('slider');
     expect(sliders[2]).toBeInTheDocument();
     expect(document.querySelector('.count-badge')).toHaveTextContent('6');
   });
 
-  it('sorts cards by annual mileage ascending', () => {
+  it('sorts cards by annual mileage ascending', async () => {
     render(<App />);
+    await screen.findByText('Малоездные авто');
     const cards = document.querySelectorAll('.usage-card');
     expect(cards).toHaveLength(6);
     const first = within(cards[0]);
@@ -144,8 +156,9 @@ describe('Малоездные авто section', () => {
     expect(first.getByText(grantaBadge)).toBeInTheDocument();
   });
 
-  it('filters cards by slider threshold', () => {
+  it('filters cards by slider threshold', async () => {
     render(<App />);
+    await screen.findByText('Малоездные авто');
     const slider = screen.getAllByRole('slider')[2];
 
     fireEvent.change(slider, { target: { value: '5500' } });

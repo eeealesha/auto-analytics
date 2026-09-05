@@ -9,7 +9,6 @@ import { getSegment, getCarsBySegment, getDefaultThresholds } from './utils/segm
 import { linearRegression } from './utils/trendLine';
 import SegmentFilter from './components/SegmentFilter';
 import PriceHistoryChart from './components/PriceHistoryChart';
-import rawData from '../data/cars.json';
 
 const COLORS = ['#48b803', '#2196F3', '#FF9800', '#E91E63', '#9C27B0', '#00BCD4', '#FF5722', '#607D8B'];
 
@@ -129,35 +128,33 @@ function App() {
   const [thresholds, setThresholds] = useState(getDefaultThresholds());
   const [historyData, setHistoryData] = useState(new Map());
   const [historyDates, setHistoryDates] = useState([]);
+  const [rawCars, setRawCars] = useState(null);
 
   useEffect(() => {
-    async function loadHistory() {
+    async function loadData() {
       try {
-        const modules = import.meta.glob('/data/history/*.json');
-        const dates = [];
-        const data = new Map();
+        const [offersRes, historyRes] = await Promise.all([
+          fetch('/api/offers'),
+          fetch('/api/history'),
+        ]);
+        const nextOffers = await offersRes.json();
+        const history = await historyRes.json();
+        setRawCars(nextOffers);
 
-        for (const path of Object.keys(modules)) {
-          const dateMatch = path.match(/(\d{4}-\d{2}-\d{2})\.json$/);
-          if (dateMatch) {
-            const date = dateMatch[1];
-            dates.push(date);
-            const mod = await modules[path]();
-            data.set(date, mod.default || mod);
-          }
-        }
-
-        dates.sort();
+        const dates = history?.dates || [];
+        const byDate = history?.byDate || {};
+        const data = new Map(dates.map(d => [d, byDate[d] || []]));
         setHistoryDates(dates);
         setHistoryData(data);
       } catch (e) {
-        console.warn('History data not available:', e);
+        console.warn('API недоступен:', e);
+        setRawCars([]);
       }
     }
-    loadHistory();
+    loadData();
   }, []);
 
-  const cars = useMemo(() => calculateScore(rawData), []);
+  const cars = useMemo(() => calculateScore(rawCars || []), [rawCars]);
 
   const brands = useMemo(() => {
     const b = [...new Set(cars.map(c => c.brand))].sort();
@@ -336,7 +333,7 @@ function App() {
       <header className="header">
         <h1>Major Expert Auto Analytics</h1>
         <p className="subtitle">
-          {segmentedCars.length} объявлений • Данные с major-expert.ru
+          {rawCars === null ? 'Загрузка данных…' : `${segmentedCars.length} объявлений`}
         </p>
       </header>
 
