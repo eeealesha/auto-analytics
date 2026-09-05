@@ -20,7 +20,7 @@ jobs:
             git fetch origin
             git reset --hard origin/master
             npm ci
-            npm test
+            DATABASE_URL= npm test
             node scraper/index.js || echo "scraper failed, building with existing data"
             npm run build
             systemctl reload nginx
