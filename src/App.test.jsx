@@ -199,6 +199,8 @@ describe('Источник filter', () => {
     const user = userEvent.setup();
     render(<App />);
     await screen.findByText('Все источники');
+    screen.getByRole('option', { name: 'major-expert.ru' });
+    screen.getByRole('option', { name: 'rolf.ru' });
     await user.selectOptions(screen.getByLabelText('Источник'), 'rolf');
     await screen.findByText(/2 объявлений/);
   });

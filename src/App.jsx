@@ -13,6 +13,8 @@ import PriceHistoryChart from './components/PriceHistoryChart';
 
 const COLORS = ['#48b803', '#2196F3', '#FF9800', '#E91E63', '#9C27B0', '#00BCD4', '#FF5722', '#607D8B'];
 
+const SOURCE_LABELS = { 'major-expert': 'major-expert.ru', rolf: 'rolf.ru' };
+
 function TrendLines({ scatterSeries, hiddenBrands, xAxisMap, yAxisMap }) {
   const xScale = xAxisMap && Object.values(xAxisMap)[0]?.scale
   const yScale = yAxisMap && Object.values(yAxisMap)[0]?.scale
@@ -355,7 +357,7 @@ function App() {
       <div className="filters">
         <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)} aria-label="Источник">
           <option value="all">Все источники</option>
-          {metaSources.map(s => <option key={s} value={s}>{s === 'major-expert' ? 'major-expert' : s}</option>)}
+          {metaSources.map(s => <option key={s} value={s}>{SOURCE_LABELS[s] || s}</option>)}
         </select>
 
         <select value={brandFilter} onChange={e => setBrandFilter(e.target.value)}>
