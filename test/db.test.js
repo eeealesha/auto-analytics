@@ -56,6 +56,14 @@ describe('buildOfferQuery', () => {
   });
 });
 
+describe('buildOfferQuery limit', () => {
+  it('limit добавляет LIMIT только при валидном положительном числе', () => {
+    const { sql, params } = buildOfferQuery({ source: 'rolf', limit: '10' });
+    expect(sql).toContain('LIMIT 10');
+    expect(buildOfferQuery({ source: 'rolf', limit: 'abc' }).sql).not.toContain('LIMIT');
+  });
+});
+
 describe('applySync (интеграция с PostgreSQL)', () => {
   const dsn = process.env.DATABASE_URL;
   const itDb = dsn ? it : it.skip;

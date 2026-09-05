@@ -23,6 +23,7 @@ export function createApp(db) {
         brand: req.query.brand || undefined,
         yearFrom: req.query.yearFrom || undefined,
         yearTo: req.query.yearTo || undefined,
+        limit: req.query.limit || undefined,
       };
       const rows = await db.getOffers(filters);
       res.json(rows.map(offerRowToCar));
@@ -33,7 +34,7 @@ export function createApp(db) {
 
   app.get('/api/history', async (req, res, next) => {
     try {
-      const rows = await db.getHistory({ source: req.query.source || undefined });
+      const rows = await db.getHistory({ source: req.query.source || undefined, days: req.query.days || undefined });
       res.json(historyRowsToDays(rows));
     } catch (err) {
       next(err);

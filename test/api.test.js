@@ -50,6 +50,18 @@ describe('API', () => {
     expect(getOffers).toHaveBeenCalledWith(expect.objectContaining({ source: 'rolf', brand: 'BMW', yearFrom: '2020', yearTo: '2024' }));
   });
 
+  it('GET /api/offers передаёт limit в getOffers', async () => {
+    const getOffers = vi.fn().mockResolvedValue([]);
+    await request(createApp(makeDb({ getOffers }))).get('/api/offers?source=rolf&limit=25');
+    expect(getOffers).toHaveBeenCalledWith(expect.objectContaining({ source: 'rolf', limit: '25' }));
+  });
+
+  it('GET /api/history передаёт days в getHistory', async () => {
+    const getHistory = vi.fn().mockResolvedValue({ dates: [], byDate: {} });
+    await request(createApp(makeDb({ getHistory }))).get('/api/history?days=30&source=rolf');
+    expect(getHistory).toHaveBeenCalledWith(expect.objectContaining({ source: 'rolf', days: '30' }));
+  });
+
   it('при ошибке БД возвращает 500', async () => {
     const db = makeDb({ getOffers: async () => { throw new Error('db down'); } });
     const res = await request(createApp(db)).get('/api/offers');

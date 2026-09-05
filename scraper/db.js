@@ -39,7 +39,12 @@ export function buildOfferQuery(filters = {}) {
   if (filters.brand) push('brand', '=', filters.brand);
   if (filters.yearFrom) push('year', '>=', Number(filters.yearFrom));
   if (filters.yearTo) push('year', '<=', Number(filters.yearTo));
-  return { where: where.join(' AND '), params };
+  let limitSql = '';
+  if (Number.isInteger(+filters.limit) && +filters.limit > 0) {
+    limitSql = ` LIMIT ${+filters.limit}`;
+  }
+  const sql = `SELECT * FROM offers WHERE ${where.join(' AND ')} ORDER BY id${limitSql}`;
+  return { where: where.join(' AND '), params, sql };
 }
 
 export function createPool(dsn) {
@@ -159,23 +164,24 @@ export async function applySync(pool, { source, cars, today, deactivate = true }
 }
 
 export async function getOffers(pool, filters = {}) {
-  const { where, params } = buildOfferQuery(filters);
-  const { rows } = await pool.query(`SELECT * FROM offers WHERE ${where} ORDER BY id`, params);
+  const { sql, params } = buildOfferQuery(filters);
+  const { rows } = await pool.query(sql, params);
   return rows;
 }
 
-export async function getHistory(pool, { source } = {}) {
+export async function getHistory(pool, { source, days = 90 } = {}) {
   const params = [];
-  let sourceWhere = '';
+  let where = 'WHERE h.date >= CURRENT_DATE - $1';
+  params.push(Number.isInteger(+days) && +days > 0 ? +days : 90);
   if (source) {
     params.push(source);
-    sourceWhere = 'WHERE o.source = $1';
+    where += ` AND o.source = $${params.length}`;
   }
   const { rows } = await pool.query(
     `SELECT to_char(h.date, 'YYYY-MM-DD') AS date, o.brand, o.model, h.price
      FROM price_history h
      JOIN offers o ON o.id = h.offer_id
-     ${sourceWhere}
+     ${where}
      ORDER BY h.date`,
     params,
   );
