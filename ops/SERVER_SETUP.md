@@ -14,6 +14,10 @@
     DATABASE_URL=postgres://auto:СМЕНИ_ПАРОЛЬ@127.0.0.1:5432/auto_analytics
     PORT=3001
 
+> Пароль в `DATABASE_URL` нужно URL-кодировать, если он содержит спецсимволы
+> (`#`, `,`, `@`, `%` и др.). Например `#` → `%23`, `,` → `%2C`. Иначе pg
+> выдаст «Invalid URL» (символ `#` воспринимается как начало URL-fragment).
+
 ## 3. systemd-сервис API
 
     sudo cp ops/auto-analytics-api.service /etc/systemd/system/

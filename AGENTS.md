@@ -57,5 +57,6 @@ score = (avg_price - current_price) / avg_price * 100 + mileage_bonus + year_bon
 - User-Agent: ставить обычный браузерный
 - data/cars.json — кэш, коммитить не надо (содержит ~2470 записей)
 - DATABASE_URL (postgres://…) обязателен для записи в БД и запуска API
+- Пароль в DATABASE_URL с символами `#`, `,`, `@`, `%` нужно указывать URL-encoded (например `#` → `%23`, `,` → `%2C`), иначе pg выдаст «Invalid URL»
 - Cron ежедневно 03:00 МСК: .github/workflows/scrape-daily.yml
 - Дашборд читает /api/offers, /api/history, /api/meta (nginx проксирует /api на :3001)

@@ -122,7 +122,7 @@ export async function initSchema(pool) {
   await pool.query(SCHEMA);
 }
 
-export async function applySync(pool, { source, cars, today }) {
+export async function applySync(pool, { source, cars, today, deactivate = true }) {
   const client = await pool.connect();
   let inserted = 0;
   let updated = 0;
@@ -143,8 +143,11 @@ export async function applySync(pool, { source, cars, today }) {
     for (const { id, car } of saved) {
       await client.query(INSERT_HISTORY, [id, today, car.price, car.oldPrice ?? null]);
     }
-    const { rowCount } = await client.query(DEACTIVATE, [source, cars.map(c => String(c.id))]);
-    deactivated = rowCount;
+    let deactivated = 0;
+    if (deactivate && cars.length > 0) {
+      const { rowCount } = await client.query(DEACTIVATE, [source, cars.map(c => String(c.id))]);
+      deactivated = rowCount;
+    }
     await client.query('COMMIT');
     return { inserted, updated, deactivated };
   } catch (err) {

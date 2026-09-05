@@ -93,4 +93,37 @@ describe('applySync (интеграция с PostgreSQL)', () => {
     expect(lastHistory).toHaveLength(1); // UNIQUE(offer_id,date) — перезаписан, не дублирован
     expect(lastHistory[0].price).toBe('4900000');
   });
+
+  itDb('пустой батч или deactivate:false никогда не деактивирует', async () => {
+    const pool = new (await import('pg')).Pool({ connectionString: dsn });
+    await initSchema(pool);
+
+    const source = 'rolf';
+    const carA = { id: 9001, brand: 'BMW', model: 'X4', price: 5000000, isNew: false };
+    const carB = { id: 9002, brand: 'Audi', model: 'Q7', price: 4000000, isNew: false };
+
+    // (a) sync 2 cars → both active
+    await applySync(pool, { source, cars: [carA, carB], today: '2026-09-05' });
+    const activeAfterA = await getOffers(pool, { source });
+    expect(activeAfterA.map(o => o.source_id).sort()).toEqual(['9001', '9002']);
+
+    // (b) sync only id 9001 with deactivate:false → both still active (unseen preserved)
+    await applySync(pool, {
+      source,
+      cars: [carA],
+      today: '2026-09-05',
+      deactivate: false,
+    });
+    const activeAfterB = await getOffers(pool, { source });
+    expect(activeAfterB.map(o => o.source_id).sort()).toEqual(['9001', '9002']);
+
+    // (c) sync with deactivate:true but cars:[] → both still active (empty batch never deactivates)
+    await applySync(pool, { source, cars: [], today: '2026-09-05', deactivate: true });
+    const activeAfterC = await getOffers(pool, { source });
+    expect(activeAfterC.map(o => o.source_id).sort()).toEqual(['9001', '9002']);
+
+    // cleanup — убрать rolf-строки, чтобы не загрязнять другие тесты в той же БД
+    await pool.query('DELETE FROM offers WHERE source = $1', [source]);
+    await pool.end();
+  });
 });

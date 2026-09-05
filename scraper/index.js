@@ -59,16 +59,38 @@ async function fetchPage(page) {
     }, { headers: HEADERS, timeout: 15000 });
 
     const data = response.data?.data;
-    if (!data?.items) return { cars: [], total: 0, lastPage: 0 };
+    if (!data?.items) return { cars: [], total: 0, lastPage: 0, ok: false };
 
     return {
       cars: data.items.map(normalizeCar),
       total: data.pagination?.total || 0,
       lastPage: data.pagination?.lastPage || 0,
+      ok: true,
     };
   } catch (error) {
-    console.error(`  Error on page ${page}: ${error.message}`);
-    return { cars: [], total: 0, lastPage: 0 };
+    console.log(`  Error on page ${page} (${error.message}). Retrying...`);
+    await delay(DELAY_MS * 2);
+    try {
+      const response = await axios.post(API_URL, {
+        url: '/cars/moscow/',
+        page,
+        perPage: PER_PAGE,
+        orderBy: 'popular',
+      }, { headers: HEADERS, timeout: 15000 });
+
+      const data = response.data?.data;
+      if (!data?.items) return { cars: [], total: 0, lastPage: 0, ok: false };
+
+      return {
+        cars: data.items.map(normalizeCar),
+        total: data.pagination?.total || 0,
+        lastPage: data.pagination?.lastPage || 0,
+        ok: true,
+      };
+    } catch (error) {
+      console.log(`  Error on page ${page} (${error.message}). Giving up.`);
+      return { cars: [], total: 0, lastPage: 0, ok: false };
+    }
   }
 }
 
@@ -84,13 +106,15 @@ async function scrapeAll(maxPages = Infinity) {
 
   const totalPages = Math.min(first.lastPage, maxPages);
   let allCars = [...first.cars];
+  let failedPages = 0;
   console.log(`Total: ${first.total} cars across ${first.lastPage} pages. Scraping ${totalPages} pages...\n`);
 
   for (let page = 2; page <= totalPages; page++) {
     await delay(DELAY_MS);
-    const { cars } = await fetchPage(page);
-    console.log(`  Page ${page}/${totalPages}: ${cars.length} cars`);
-    allCars = allCars.concat(cars);
+    const res = await fetchPage(page);
+    if (!res.ok) failedPages++;
+    console.log(`  Page ${page}/${totalPages}: ${res.cars.length} cars${res.ok ? '' : ' (FAILED)'}`);
+    allCars = allCars.concat(res.cars);
   }
 
   const uniqueCars = deduplicate(allCars);
@@ -106,7 +130,11 @@ async function scrapeAll(maxPages = Infinity) {
     const pool = createPool(process.env.DATABASE_URL);
     try {
       await initSchema(pool);
-      const result = await applySync(pool, { source: 'major-expert', cars: uniqueCars, today });
+      const partial = failedPages > 0;
+      if (partial) {
+        console.warn(`  WARNING: ${failedPages} page(s) failed — partial data, deactivation skipped`);
+      }
+      const result = await applySync(pool, { source: 'major-expert', cars: uniqueCars, today, deactivate: !partial });
       console.log(`DB sync: ${result.inserted} new, ${result.updated} updated, ${result.deactivated} deactivated`);
     } finally {
       await pool.end();
