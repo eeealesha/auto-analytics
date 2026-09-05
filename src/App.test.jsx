@@ -129,7 +129,8 @@ describe('Малоездные авто section', () => {
   it('renders header with count badge and slider', () => {
     render(<App />);
     expect(screen.getByText('Малоездные авто')).toBeInTheDocument();
-    expect(screen.getByRole('slider')).toBeInTheDocument();
+    const sliders = screen.getAllByRole('slider');
+    expect(sliders[2]).toBeInTheDocument();
     expect(document.querySelector('.count-badge')).toHaveTextContent('6');
   });
 
@@ -145,7 +146,7 @@ describe('Малоездные авто section', () => {
 
   it('filters cards by slider threshold', () => {
     render(<App />);
-    const slider = screen.getByRole('slider');
+    const slider = screen.getAllByRole('slider')[2];
 
     fireEvent.change(slider, { target: { value: '5500' } });
 
