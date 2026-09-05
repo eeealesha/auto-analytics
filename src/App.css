@@ -492,3 +492,11 @@ body {
   }
 
 }
+
+.comparison-list { display: flex; flex-direction: column; gap: 16px; }
+.comparison-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; border: 1px solid #eee; border-radius: 8px; padding: 16px; }
+.comparison-col h4 { margin: 0 0 8px; color: #333; }
+.cmp-name { margin: 0 0 8px; font-weight: 600; }
+.cmp-table { width: 100%; border-collapse: collapse; }
+.cmp-table td { padding: 4px 8px; border-bottom: 1px solid #f0f0f0; }
+.cmp-hl td:last-child { color: #48b803; font-weight: 700; }

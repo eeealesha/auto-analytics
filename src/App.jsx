@@ -10,6 +10,7 @@ import { linearRegression } from './utils/trendLine';
 import { thinSeries } from './utils/thinPoints.js';
 import SegmentFilter from './components/SegmentFilter';
 import PriceHistoryChart from './components/PriceHistoryChart';
+import SourceComparison from './components/SourceComparison.jsx';
 
 const COLORS = ['#48b803', '#2196F3', '#FF9800', '#E91E63', '#9C27B0', '#00BCD4', '#FF5722', '#607D8B'];
 
@@ -565,6 +566,8 @@ function App() {
           ))}
         </div>
       </div>
+
+      <SourceComparison cars={segmentedCars} sources={metaSources} />
     </div>
   );
 }
