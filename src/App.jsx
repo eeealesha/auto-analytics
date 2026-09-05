@@ -7,6 +7,7 @@ import { calculateScore, formatPrice, formatMileage } from './utils/scoreCalcula
 import { calcAnnualMileage, formatAnnual } from './utils/usage';
 import { getSegment, getCarsBySegment, getDefaultThresholds } from './utils/segmentation';
 import { linearRegression } from './utils/trendLine';
+import { thinSeries } from './utils/thinPoints.js';
 import SegmentFilter from './components/SegmentFilter';
 import PriceHistoryChart from './components/PriceHistoryChart';
 
@@ -129,17 +130,22 @@ function App() {
   const [historyData, setHistoryData] = useState(new Map());
   const [historyDates, setHistoryDates] = useState([]);
   const [rawCars, setRawCars] = useState(null);
+  const [sourceFilter, setSourceFilter] = useState('all');
+  const [metaSources, setMetaSources] = useState([]);
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [offersRes, historyRes] = await Promise.all([
+        const [offersRes, historyRes, metaRes] = await Promise.all([
           fetch('/api/offers'),
-          fetch('/api/history'),
+          fetch('/api/history' + (sourceFilter !== 'all' ? `?source=${sourceFilter}` : '')),
+          fetch('/api/meta'),
         ]);
         const nextOffers = await offersRes.json();
         const history = await historyRes.json();
+        const meta = await metaRes.json();
         setRawCars(nextOffers);
+        setMetaSources(meta.sources || []);
 
         const dates = history?.dates || [];
         const byDate = history?.byDate || {};
@@ -152,7 +158,7 @@ function App() {
       }
     }
     loadData();
-  }, []);
+  }, [sourceFilter]);
 
   const cars = useMemo(() => calculateScore(rawCars || []), [rawCars]);
 
@@ -168,12 +174,13 @@ function App() {
 
   const baseFiltered = useMemo(() => {
     let result = cars;
+    if (sourceFilter !== 'all') result = result.filter(c => c.source === sourceFilter);
     if (brandFilter !== 'all') result = result.filter(c => c.brand === brandFilter);
     if (yearFrom !== 'all') result = result.filter(c => c.year >= parseInt(yearFrom));
     if (yearTo !== 'all') result = result.filter(c => c.year <= parseInt(yearTo));
     if (showDealsOnly) result = result.filter(c => c.score > 10);
     return result;
-  }, [cars, brandFilter, yearFrom, yearTo, showDealsOnly]);
+  }, [cars, sourceFilter, brandFilter, yearFrom, yearTo, showDealsOnly]);
 
   const segmentedCars = useMemo(() => {
     let cars = getCarsBySegment(baseFiltered, selectedSegment, thresholds);
@@ -199,6 +206,12 @@ function App() {
       setBodyTypeFilter('all');
     }
   }, [bodyTypes, bodyTypeFilter]);
+
+  useEffect(() => {
+    if (sourceFilter !== 'all' && !metaSources.includes(sourceFilter)) {
+      setSourceFilter('all');
+    }
+  }, [metaSources, sourceFilter]);
 
   const priceByBrand = useMemo(() => {
     const map = {};
@@ -255,6 +268,8 @@ function App() {
     if (other.length > 0) series.push({ brand: 'Другие', data: other, fill: '#9E9E9E' });
     return series;
   }, [scatterData]);
+
+  const scatterSeriesLimited = useMemo(() => thinSeries(scatterSeries, 2000), [scatterSeries]);
 
   const toggleBrand = (entry) => {
     setHiddenBrands(prev => {
@@ -338,6 +353,11 @@ function App() {
       </header>
 
       <div className="filters">
+        <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)} aria-label="Источник">
+          <option value="all">Все источники</option>
+          {metaSources.map(s => <option key={s} value={s}>{s === 'major-expert' ? 'major-expert' : s}</option>)}
+        </select>
+
         <select value={brandFilter} onChange={e => setBrandFilter(e.target.value)}>
           <option value="all">Все марки</option>
           {brands.map(b => <option key={b} value={b}>{b}</option>)}
@@ -439,9 +459,9 @@ function App() {
               />
               <Legend onClick={toggleBrand} />
               <Customized
-                component={<TrendLines scatterSeries={scatterSeries} hiddenBrands={hiddenBrands} />}
+                component={<TrendLines scatterSeries={scatterSeriesLimited} hiddenBrands={hiddenBrands} />}
               />
-              {scatterSeries.map(s => (
+              {scatterSeriesLimited.map(s => (
                 <Scatter
                   key={s.brand}
                   name={s.brand}

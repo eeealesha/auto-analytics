@@ -17,7 +17,11 @@ const history = { dates: [], byDate: {} };
 
 beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn((url) => Promise.resolve({
-    json: () => Promise.resolve(url === '/api/offers' ? offers : history),
+    json: () => {
+      if (url === '/api/offers') return Promise.resolve(offers);
+      if (url === '/api/meta') return Promise.resolve({ sources: ['major-expert'], brands: ['Toyota', 'BMW', 'Lada'], years: [2019, 2020, 2021, 2022, 2023] });
+      return Promise.resolve(history);
+    },
   })));
 });
 
@@ -45,7 +49,8 @@ describe('App smoke tests', () => {
     render(<App />);
     await screen.findByText('Все марки');
     const selects = screen.getAllByRole('combobox');
-    expect(selects).toHaveLength(4);
+    expect(selects).toHaveLength(5);
+    expect(screen.getByText('Все источники')).toBeInTheDocument();
     expect(screen.getByText('Год от')).toBeInTheDocument();
     expect(screen.getByText('Год до')).toBeInTheDocument();
     expect(screen.getByText('Все типы кузова')).toBeInTheDocument();
@@ -63,7 +68,7 @@ describe('App smoke tests', () => {
     const user = userEvent.setup();
     render(<App />);
     await screen.findByText('Все марки');
-    await user.selectOptions(screen.getAllByRole('combobox')[0], 'BMW');
+    await user.selectOptions(screen.getAllByRole('combobox')[1], 'BMW');
     await getSubtitleCount(2);
   });
 
@@ -71,7 +76,7 @@ describe('App smoke tests', () => {
     const user = userEvent.setup();
     render(<App />);
     await screen.findByText('Все марки');
-    await user.selectOptions(screen.getAllByRole('combobox')[3], 'Внедорожник');
+    await user.selectOptions(screen.getAllByRole('combobox')[4], 'Внедорожник');
     await getSubtitleCount(2);
   });
 
@@ -79,7 +84,7 @@ describe('App smoke tests', () => {
     const user = userEvent.setup();
     render(<App />);
     await screen.findByText('Все марки');
-    await user.selectOptions(screen.getAllByRole('combobox')[1], '2021');
+    await user.selectOptions(screen.getAllByRole('combobox')[2], '2021');
     await getSubtitleCount(4);
   });
 
@@ -124,7 +129,7 @@ describe('App smoke tests', () => {
     render(<App />);
     await screen.findByText('Все марки');
 
-    const bodySelect = screen.getAllByRole('combobox')[3];
+    const bodySelect = screen.getAllByRole('combobox')[4];
     await user.selectOptions(bodySelect, 'Седан');
     await getSubtitleCount(4);
 
@@ -173,5 +178,28 @@ describe('Малоездные авто section', () => {
     ].filter(a => a <= 5500).length;
     expect(document.querySelectorAll('.usage-card')).toHaveLength(expectedCount);
     expect(document.querySelectorAll('.usage-card .annual-badge')).toHaveLength(expectedCount);
+  });
+});
+
+describe('Источник filter', () => {
+  const mixed = [
+    ...offers,
+    { id: 101, source: 'rolf', brand: 'BMW', model: 'X5', year: 2022, price: 5100000, mileage: 22000, bodyType: 'Внедорожник', fuelType: 'Дизель', engineVolume: 3.0, horsepower: 286, url: 'https://rolf.ru/101', image: '' },
+    { id: 102, source: 'rolf', brand: 'Lada', model: 'Granta', year: 2023, price: 850000, mileage: 4000, bodyType: 'Седан', fuelType: 'Бензин', engineVolume: 1.6, horsepower: 98, url: 'https://rolf.ru/102', image: '' },
+  ];
+
+  it('переключает объявления и подпись по источнику', async () => {
+    vi.stubGlobal('fetch', vi.fn((url) => Promise.resolve({
+      json: () => {
+        if (url === '/api/offers') return Promise.resolve(mixed);
+        if (url === '/api/meta') return Promise.resolve({ sources: ['major-expert', 'rolf'], brands: [], years: [] });
+        return Promise.resolve({ dates: [], byDate: {} });
+      },
+    })));
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByText('Все источники');
+    await user.selectOptions(screen.getByLabelText('Источник'), 'rolf');
+    await screen.findByText(/2 объявлений/);
   });
 });
