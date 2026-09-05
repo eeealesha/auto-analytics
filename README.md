@@ -8,7 +8,8 @@
 
 ## Что внутри
 
-- **Парсер** (`scraper/index.js`): Node.js + axios, тянет объявления через JSON API сайта major-expert.ru (~200 страниц), отсекает дубли по id и складывает ежедневные снапшоты цен в `data/history/`.
+- **Парсер** (`scraper/index.js`): Node.js + axios, тянет объявления через JSON API сайта major-expert.ru (~200 страниц), отсекает дубли по id, складывает предложения в PostgreSQL и каждый день обновляет их по cron.
+- **API** (`server/index.js`): Express API на порту 3001, отдаёт `/api/offers`, `/api/history`, `/api/meta`, из которых дашборд берёт данные в рантайме.
 - **Дашборд** (`src/App.jsx`): React + Vite + Recharts. Фильтры по марке и годам, 4 графика, карточки лучших предложений.
 - **Score выгодности** (`src/utils/scoreCalculator.js`): насколько цена ниже средней по марке и модели, плюс бонусы за меньший пробег и свежий год. Score выше 10 = выгодная сделка, выше 20 = отличная.
 - **Автодеплой** (`.github/workflows/deploy.yml`): пуш в master, GitHub Actions по SSH пересобирает данные и обновляет сервер (nginx).
@@ -27,6 +28,8 @@ cp data/cars.sample.json data/cars.json
 
 npm run dev           # http://localhost:5173
 ```
+
+Для данных через API понадобится запущенная БД (PostgreSQL) и сервер (`npm run server`, порт 3001) — подробнее в `ops/SERVER_SETUP.md`.
 
 ## Про данные
 
