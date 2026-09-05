@@ -1,26 +1,30 @@
-name: Deploy to Server
+name: Daily Scrape
 
 on:
-  push:
-    branches: [master]
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
 
 jobs:
-  deploy:
+  scrape:
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy via SSH
+      - name: Scrape and sync DB on server
         uses: appleboy/ssh-action@v1
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           password: ${{ secrets.DEPLOY_PASSWORD }}
+          envs: DATABASE_URL
           script: |
             set -e
             cd /var/www/auto-analytics/app
             git fetch origin
             git reset --hard origin/master
             npm ci
-            DATABASE_URL= npm test
-            node scraper/index.js || echo "scraper failed, building with existing data"
-            npm run build
-            systemctl reload nginx
+            AUTO_MIGRATE=1 node scraper/migrate.js
+            node scraper/cleanup.js
+            node scraper/index.js
+            node scraper/rolf.js
