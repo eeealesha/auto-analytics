@@ -76,7 +76,7 @@
 
 ### Прочее, что есть в item
 
-`salon` (дилерский прощально-центр), `dealer` (дилер, напр. `{id:9,name:"РОЛЬФ Алтуфьево",alias:"rolf_altufevo"}`),
+`salon` (дилерский продающий центр), `dealer` (дилер, напр. `{id:9,name:"РОЛЬФ Алтуфьево",alias:"rolf_altufevo"}`),
 `city` (напр. `{id:1,name:"Москва",alias:"msk"}`), `generation`, `doors_count`,
 `interior`, `is_sold`, `is_reserved`, `vin[]`, `warranty_name`, `description_small`,
 дисконтные поля `discount_credit/trade_in/insurance/max`, `ecredit_*`.
