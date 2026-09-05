@@ -1,6 +1,7 @@
 import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
+import { createPool, initSchema, applySync } from './db.js';
 
 const API_URL = 'https://www.major-expert.ru/api/v1/public/cars/items-by-url';
 const DELAY_MS = 300;
@@ -100,6 +101,19 @@ async function scrapeAll(maxPages = Infinity) {
 
   const mainPath = path.join(DATA_DIR, 'cars.json');
   fs.writeFileSync(mainPath, JSON.stringify(uniqueCars, null, 2));
+
+  if (process.env.DATABASE_URL) {
+    const pool = createPool(process.env.DATABASE_URL);
+    try {
+      await initSchema(pool);
+      const result = await applySync(pool, { source: 'major-expert', cars: uniqueCars, today });
+      console.log(`DB sync: ${result.inserted} new, ${result.updated} updated, ${result.deactivated} deactivated`);
+    } finally {
+      await pool.end();
+    }
+  } else {
+    console.log('DATABASE_URL не задан — сохранён только кэш cars.json');
+  }
 
   console.log(`\nDone! Scraped ${uniqueCars.length} unique cars.`);
   console.log(`Saved to ${mainPath}`);
