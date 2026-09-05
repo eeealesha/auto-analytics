@@ -15,7 +15,7 @@ if (!dsn) {
 const pool = createPool(dsn);
 const db = {
   getOffers: filters => getOffers(pool, filters),
-  getHistory: ({ source }) => getHistory(pool, { source }),
+  getHistory: ({ source, days }) => getHistory(pool, { source, days }),
   getMeta: () => getMeta(pool),
 };
 

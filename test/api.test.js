@@ -57,7 +57,7 @@ describe('API', () => {
   });
 
   it('GET /api/history передаёт days в getHistory', async () => {
-    const getHistory = vi.fn().mockResolvedValue({ dates: [], byDate: {} });
+    const getHistory = vi.fn().mockResolvedValue([]);
     await request(createApp(makeDb({ getHistory }))).get('/api/history?days=30&source=rolf');
     expect(getHistory).toHaveBeenCalledWith(expect.objectContaining({ source: 'rolf', days: '30' }));
   });
