@@ -171,7 +171,7 @@ export async function getOffers(pool, filters = {}) {
 
 export async function getHistory(pool, { source, days = 90 } = {}) {
   const params = [];
-  let where = 'WHERE h.date >= CURRENT_DATE - $1';
+  let where = 'WHERE h.date >= CURRENT_DATE - $1::int';
   params.push(Number.isInteger(+days) && +days > 0 ? +days : 90);
   if (source) {
     params.push(source);

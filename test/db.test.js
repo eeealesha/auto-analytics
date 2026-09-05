@@ -135,3 +135,30 @@ describe('applySync (интеграция с PostgreSQL)', () => {
     await pool.end();
   });
 });
+
+describe('getHistory (интеграция с PostgreSQL)', () => {
+  const dsn = process.env.DATABASE_URL;
+  const itDb = dsn ? it : it.skip;
+
+  itDb('getHistory с параметризованным days работает без ошибки typing', async () => {
+    const pool = new (await import('pg')).Pool({ connectionString: dsn });
+    await initSchema(pool);
+
+    await applySync(pool, {
+      source: 'test-history',
+      cars: [{ id: 88881, brand: 'Toyota', model: 'Camry', price: 3000000, isNew: false }],
+      today: '2026-09-05',
+    });
+
+    // This call must NOT throw "operator does not exist: date >= integer"
+    const rows = await getHistory(pool, { days: 30 });
+    expect(Array.isArray(rows)).toBe(true);
+    expect(rows.length).toBeGreaterThanOrEqual(1);
+    expect(rows[0]).toHaveProperty('date');
+    const toyotaRows = rows.filter(r => r.brand === 'Toyota' && r.model === 'Camry');
+    expect(toyotaRows.length).toBeGreaterThanOrEqual(1);
+
+    await pool.query('DELETE FROM offers WHERE source = $1', ['test-history']);
+    await pool.end();
+  });
+});
