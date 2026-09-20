@@ -1,7 +1,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import { createApp } from './app.js';
-import { createPool, getOffers, getHistory, getMeta } from '../scraper/db.js';
+import { createPool, getOffers, getHistory, getMeta } from '../data/db.js';
 
 const PORT = Number(process.env.PORT || 3001);
 const dsn = process.env.DATABASE_URL;

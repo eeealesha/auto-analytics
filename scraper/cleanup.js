@@ -1,4 +1,4 @@
-import { createPool } from './db.js';
+import { createPool } from '../data/db.js';
 
 export async function runCleanup(pool, days = 90) {
   const { rowCount } = await pool.query(

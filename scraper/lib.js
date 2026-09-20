@@ -40,11 +40,73 @@ export function isPartialScrape({ failedPages = 0, scraped = 0, total = 0 } = {}
   return false;
 }
 
-// offers.price объявлен BIGINT NOT NULL: одно объявление без цены откатило бы
-// всю транзакцию, поэтому такие отсеиваем до синхронизации.
 export function syncableCars(cars) {
   return cars.filter(car => {
     const price = Number(car.price);
     return Number.isFinite(price) && price > 0;
   });
+}
+
+export async function runPipeline({ source, fetchPage, filename, writeHistory = false, maxPages = Infinity, delayMs = 300 }) {
+  const { createPool, initSchema, applySync } = await import('../data/db.js');
+
+  ensureDirs();
+
+  console.log('Fetching page 1 to get total...');
+  const first = await fetchPage(1);
+  if (first.cars.length === 0) {
+    console.log('Failed to fetch page 1. Aborting.');
+    return [];
+  }
+
+  const totalPages = Math.min(first.lastPage, maxPages);
+  let allCars = [...first.cars];
+  let failedPages = 0;
+  console.log(`Total: ${first.total} cars across ${first.lastPage} pages. Scraping ${totalPages} pages...\n`);
+
+  for (let page = 2; page <= totalPages; page++) {
+    await delay(delayMs);
+    const res = await fetchPage(page);
+    if (!res.ok) failedPages++;
+    console.log(`  Page ${page}/${totalPages}: ${res.cars.length} cars${res.ok ? '' : ' (FAILED)'}`);
+    allCars = allCars.concat(res.cars);
+  }
+
+  const uniqueCars = deduplicate(allCars);
+  const today = new Date().toISOString().split('T')[0];
+  const { DATA_DIR, HISTORY_DIR } = ensureDirs();
+
+  if (writeHistory) {
+    const historyPath = path.join(HISTORY_DIR, `${today}.json`);
+    fs.writeFileSync(historyPath, JSON.stringify(uniqueCars, null, 2));
+    console.log(`History snapshot: ${historyPath}`);
+  }
+
+  const mainPath = path.join(DATA_DIR, filename);
+  fs.writeFileSync(mainPath, JSON.stringify(uniqueCars, null, 2));
+
+  if (process.env.DATABASE_URL) {
+    const pool = createPool(process.env.DATABASE_URL);
+    try {
+      await initSchema(pool);
+      const partial = isPartialScrape({ failedPages, scraped: uniqueCars.length, total: first.total });
+      if (partial) {
+        console.warn(`  WARNING: partial scrape (${failedPages} failed page(s), ${uniqueCars.length}/${first.total} offers) — deactivation skipped`);
+      }
+      const cars = syncableCars(uniqueCars);
+      const skipped = uniqueCars.length - cars.length;
+      if (skipped > 0) console.warn(`  WARNING: ${skipped} offer(s) without a price skipped`);
+      const result = await applySync(pool, { source, cars, today, deactivate: !partial });
+      console.log(`DB sync: ${result.inserted} new, ${result.updated} updated, ${result.deactivated} deactivated`);
+    } finally {
+      await pool.end();
+    }
+  } else {
+    console.log(`DATABASE_URL не задан — сохранён только кэш ${filename}`);
+  }
+
+  console.log(`\nDone! Scraped ${uniqueCars.length} unique cars.`);
+  console.log(`Saved to ${mainPath}`);
+
+  return uniqueCars;
 }

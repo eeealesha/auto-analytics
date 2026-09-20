@@ -1,8 +1,5 @@
-import fs from 'fs';
-import path from 'path';
-import { HEADERS, delay, ensureDirs, deduplicate, isPartialScrape, syncableCars } from './lib.js';
-import { createPool, initSchema, applySync } from './db.js';
 import axios from 'axios';
+import { HEADERS, delay, runPipeline } from './lib.js';
 
 const API_URL = process.env.ROLF_API_URL || 'https://apiweb.rolf.ru/api/v2/vehicles/used';
 const CITY_ID = Number(process.env.ROLF_CITY_ID || 1);
@@ -75,68 +72,18 @@ export async function fetchPage(page) {
   }
 }
 
-export async function scrapeAll(maxPages = Infinity) {
-  ensureDirs();
-
-  console.log('Fetching page 1 to get total...');
-  const first = await fetchPage(1);
-  if (first.cars.length === 0) {
-    console.log('Failed to fetch page 1. Aborting.');
-    return [];
-  }
-
-  const totalPages = Math.min(first.lastPage, maxPages);
-  let allCars = [...first.cars];
-  let failedPages = 0;
-  console.log(`Total: ${first.total} cars across ${first.lastPage} pages. Scraping ${totalPages} pages...\n`);
-
-  for (let page = 2; page <= totalPages; page++) {
-    await delay(DELAY_MS);
-    const res = await fetchPage(page);
-    if (!res.ok) failedPages++;
-    console.log(`  Page ${page}/${totalPages}: ${res.cars.length} cars${res.ok ? '' : ' (FAILED)'}`);
-    allCars = allCars.concat(res.cars);
-  }
-
-  const uniqueCars = deduplicate(allCars);
-
-  const { DATA_DIR } = ensureDirs();
-  const mainPath = path.join(DATA_DIR, 'cars-rolf.json');
-  fs.writeFileSync(mainPath, JSON.stringify(uniqueCars, null, 2));
-
-  if (process.env.DATABASE_URL) {
-    const pool = createPool(process.env.DATABASE_URL);
-    try {
-      await initSchema(pool);
-      const partial = isPartialScrape({ failedPages, scraped: uniqueCars.length, total: first.total });
-      if (partial) {
-        console.warn(`  WARNING: partial scrape (${failedPages} failed page(s), ${uniqueCars.length}/${first.total} offers) — deactivation skipped`);
-      }
-      const cars = syncableCars(uniqueCars);
-      const skipped = uniqueCars.length - cars.length;
-      if (skipped > 0) console.warn(`  WARNING: ${skipped} offer(s) without a price skipped`);
-      const result = await applySync(pool, {
-        source: 'rolf',
-        cars,
-        today: new Date().toISOString().split('T')[0],
-        deactivate: !partial,
-      });
-      console.log(`DB sync: ${result.inserted} new, ${result.updated} updated, ${result.deactivated} deactivated`);
-    } finally {
-      await pool.end();
-    }
-  } else {
-    console.log('DATABASE_URL не задан — сохранён только кэш cars-rolf.json');
-  }
-
-  console.log(`\nDone! Scraped ${uniqueCars.length} unique cars.`);
-
-  return uniqueCars;
-}
-
 const args = process.argv.slice(2);
 const pagesArg = args.find(a => a.startsWith('--pages='));
-scrapeAll(pagesArg ? parseInt(pagesArg.split('=')[1]) : Infinity).catch(err => {
+const maxPages = pagesArg ? parseInt(pagesArg.split('=')[1]) : Infinity;
+
+runPipeline({
+  source: 'rolf',
+  fetchPage,
+  filename: 'cars-rolf.json',
+  writeHistory: false,
+  maxPages,
+  delayMs: DELAY_MS,
+}).catch(err => {
   console.error(err);
   process.exit(1);
 });

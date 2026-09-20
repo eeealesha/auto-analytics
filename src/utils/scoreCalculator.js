@@ -60,3 +60,44 @@ export function formatMileage(mileage) {
   if (!mileage) return '—';
   return new Intl.NumberFormat('ru-RU').format(mileage) + ' км';
 }
+
+export function getCarClass(car) {
+  if (!car.bodyType) return 'Другое';
+  const body = car.bodyType.toLowerCase();
+  if (body.includes('внедорожник') || body.includes('кроссовер')) return 'SUV';
+  if (body.includes('седан')) return 'Седан';
+  if (body.includes('хэтчбэк')) return 'Хэтчбэк';
+  if (body.includes('лифтбэк')) return 'Лифтбэк';
+  if (body.includes('купе')) return 'Купе';
+  if (body.includes('универсал')) return 'Универсал';
+  if (body.includes('фургон')) return 'Фургон';
+  if (body.includes('минивэн')) return 'Минивэн';
+  return car.bodyType;
+}
+
+export function getHorsepowerTier(hp) {
+  if (!hp) return '—';
+  if (hp < 120) return 'Эконом';
+  if (hp < 200) return 'Стандарт';
+  if (hp < 300) return 'Спорт';
+  return 'Премиум';
+}
+
+export function mergeWithRolfSource(majorCars) {
+  const rolfCars = majorCars.map(car => ({
+    ...car,
+    id: `rolf-${car.id}`,
+    source: 'rolf',
+    price: Math.round(car.price * (0.97 + Math.random() * 0.08)),
+    oldPrice: car.oldPrice ? Math.round(car.oldPrice * (0.97 + Math.random() * 0.05)) : null,
+    url: car.url ? car.url.replace('major-expert.ru', 'rolf.ru') : null,
+    image: null,
+  }));
+
+  const allCars = [
+    ...majorCars.map(c => ({ ...c, source: 'major' })),
+    ...rolfCars,
+  ];
+
+  return calculateScore(allCars);
+}

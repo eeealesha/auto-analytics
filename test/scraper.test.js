@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { runMigrate } from '../scraper/migrate.js';
 import { runCleanup } from '../scraper/cleanup.js';
-import { initSchema } from '../scraper/db.js';
+import { initSchema } from '../data/db.js';
 
 describe('runCleanup', () => {
   it('удаляет строки старше порога и возвращает счётчик', async () => {

@@ -1,4 +1,4 @@
-import { createPool, initSchema } from './db.js';
+import { createPool, initSchema } from '../data/db.js';
 
 export async function runMigrate(pool, init = initSchema) {
   await init(pool);

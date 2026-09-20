@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, within, fireEvent } from '@testing-library/react';
+import { render, screen, within, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
 import { formatAnnual } from './utils/usage';
@@ -32,14 +32,16 @@ afterEach(() => {
 });
 
 async function getSubtitleCount(n) {
-  const subtitle = await screen.findByText(new RegExp(`^${n}\\sобъявлений$`));
-  return subtitle;
+  await waitFor(() => {
+    expect(document.querySelector('.header-subtitle')?.textContent).toBe(`${n} объявлений`);
+  });
+  return document.querySelector('.header-subtitle');
 }
 
 describe('App smoke tests', () => {
   it('renders header with title', async () => {
     render(<App />);
-    expect(await screen.findByText('Major Expert Auto Analytics')).toBeInTheDocument();
+    expect(await screen.findByText('Auto Analytics')).toBeInTheDocument();
   });
 
   it('displays total count of listings', async () => {
@@ -50,13 +52,16 @@ describe('App smoke tests', () => {
   it('renders all filter controls', async () => {
     render(<App />);
     await screen.findByText('Все марки');
-    const selects = screen.getAllByRole('combobox');
-    expect(selects).toHaveLength(5);
+    expect(screen.getAllByRole('combobox')).toHaveLength(6);
+    expect(screen.getByRole('combobox', { name: 'Марка' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Класс' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Год от' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Год до' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Источник' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Тип кузова' })).toBeInTheDocument();
     expect(screen.getByText('Все источники')).toBeInTheDocument();
-    expect(screen.getByText('Год от')).toBeInTheDocument();
-    expect(screen.getByText('Год до')).toBeInTheDocument();
     expect(screen.getByText('Все типы кузова')).toBeInTheDocument();
-    expect(screen.getByText('Только выгодные предложения')).toBeInTheDocument();
+    expect(screen.getByText('Только выгодные')).toBeInTheDocument();
   });
 
   it('does not render chip buttons', async () => {
@@ -70,7 +75,7 @@ describe('App smoke tests', () => {
     const user = userEvent.setup();
     render(<App />);
     await screen.findByText('Все марки');
-    await user.selectOptions(screen.getAllByRole('combobox')[1], 'BMW');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Марка' }), 'BMW');
     await getSubtitleCount(2);
   });
 
@@ -78,7 +83,7 @@ describe('App smoke tests', () => {
     const user = userEvent.setup();
     render(<App />);
     await screen.findByText('Все марки');
-    await user.selectOptions(screen.getAllByRole('combobox')[4], 'Внедорожник');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Тип кузова' }), 'Внедорожник');
     await getSubtitleCount(2);
   });
 
@@ -86,7 +91,7 @@ describe('App smoke tests', () => {
     const user = userEvent.setup();
     render(<App />);
     await screen.findByText('Все марки');
-    await user.selectOptions(screen.getAllByRole('combobox')[2], '2021');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Год от' }), '2021');
     await getSubtitleCount(4);
   });
 
@@ -95,23 +100,24 @@ describe('App smoke tests', () => {
     render(<App />);
     await screen.findByText('Все марки');
     await user.click(screen.getByRole('checkbox'));
-    await screen.findByText(/объявлений/);
+    await waitFor(() => {
+      expect(document.querySelector('.header-subtitle')?.textContent).toMatch(/объявлений/);
+    });
   });
 
-  it('renders stats row', async () => {
+  it('renders source summary', async () => {
     render(<App />);
-    await screen.findByText('Объявлений');
-    expect(screen.getByText('Средняя цена')).toBeInTheDocument();
-    expect(screen.getByText('Средний пробег')).toBeInTheDocument();
-    expect(screen.getByText('Выгодных сделок')).toBeInTheDocument();
+    await screen.findByText('Auto Analytics');
+    await screen.findAllByText('Major Auto');
+    expect(document.querySelectorAll('.source-card').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders charts section', async () => {
     render(<App />);
-    await screen.findByText('Средняя цена по маркам (Топ-10)');
+    await screen.findByText('Средняя цена по маркам');
     expect(screen.getByText('Пробег vs Цена')).toBeInTheDocument();
-    expect(screen.getByText('Год выпуска vs Средняя цена')).toBeInTheDocument();
-    expect(screen.getByText('Топ-10 популярных моделей')).toBeInTheDocument();
+    expect(screen.getByText('Динамика цен по годам')).toBeInTheDocument();
+    expect(screen.getByText('Топ-10 моделей')).toBeInTheDocument();
   });
 
   it('renders deals section', async () => {
@@ -131,7 +137,7 @@ describe('App smoke tests', () => {
     render(<App />);
     await screen.findByText('Все марки');
 
-    const bodySelect = screen.getAllByRole('combobox')[4];
+    const bodySelect = screen.getByRole('combobox', { name: 'Тип кузова' });
     await user.selectOptions(bodySelect, 'Седан');
     await getSubtitleCount(4);
 
@@ -147,8 +153,7 @@ describe('Малоездные авто section', () => {
   it('renders header with count badge and slider', async () => {
     render(<App />);
     await screen.findByText('Малоездные авто');
-    const sliders = screen.getAllByRole('slider');
-    expect(sliders[2]).toBeInTheDocument();
+    expect(screen.getByRole('slider', { name: 'Пробег в год' })).toBeInTheDocument();
     expect(document.querySelector('.count-badge')).toHaveTextContent('6');
   });
 
@@ -166,7 +171,7 @@ describe('Малоездные авто section', () => {
   it('filters cards by slider threshold', async () => {
     render(<App />);
     await screen.findByText('Малоездные авто');
-    const slider = screen.getAllByRole('slider')[2];
+    const slider = screen.getByRole('slider', { name: 'Пробег в год' });
 
     fireEvent.change(slider, { target: { value: '5500' } });
 
@@ -203,9 +208,9 @@ describe('Источник filter', () => {
     const user = userEvent.setup();
     render(<App />);
     await screen.findByText('Все источники');
-    screen.getByRole('option', { name: 'major-expert.ru' });
-    screen.getByRole('option', { name: 'rolf.ru' });
-    await user.selectOptions(screen.getByLabelText('Источник'), 'rolf');
-    await screen.findByText(/2 объявлений/);
+    screen.getByRole('option', { name: 'Major Auto' });
+    screen.getByRole('option', { name: 'Рольф' });
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Источник' }), 'rolf');
+    await getSubtitleCount(2);
   });
 });

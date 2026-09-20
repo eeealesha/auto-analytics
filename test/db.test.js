@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect, vi } from 'vitest';
-import { offerToRow, buildOfferQuery, initSchema, applySync, getOffers, getHistory, getMeta } from '../scraper/db.js';
+import { offerToRow, buildOfferQuery, initSchema, applySync, getOffers, getHistory, getMeta } from '../data/db.js';
 
 describe('getHistory SQL', () => {
   it('содержит неявный каст $1::int в where-условии (offline)', async () => {

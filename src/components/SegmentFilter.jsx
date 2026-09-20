@@ -40,6 +40,7 @@ export default function SegmentFilter({
           Эконом до {formatPrice(economyMax)}
           <input
             type="range"
+            aria-label="Порог эконом-сегмента"
             min={500_000}
             max={5_000_000}
             step={100_000}
@@ -51,6 +52,7 @@ export default function SegmentFilter({
           Люкс от {formatPrice(luxuryMin)}
           <input
             type="range"
+            aria-label="Порог люкс-сегмента"
             min={3_000_000}
             max={20_000_000}
             step={500_000}
@@ -60,7 +62,7 @@ export default function SegmentFilter({
         </label>
       </div>
 
-      <select value={bodyType} onChange={(e) => onBodyTypeChange(e.target.value)}>
+      <select aria-label="Тип кузова" value={bodyType} onChange={(e) => onBodyTypeChange(e.target.value)}>
         <option value="all">Все типы кузова</option>
         {bodyTypes.map(bt => (
           <option key={bt} value={bt}>{bt}</option>
